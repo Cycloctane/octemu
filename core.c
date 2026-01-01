@@ -177,17 +177,17 @@ int octemu_eval(OctEmu *emu, const uint16_t keystroke) {
         const uint8_t vx = emu->v[ins_x], vy = emu->v[ins_y], n = ins & 0xF;
         if (emu->i + n > OCTEMU_MEM_SIZE)
             goto err_i_memory;
-        uint8_t col = (vx & OCTEMU_GFX_WIDTH - 1) >> 3, col2, r = vx & 7; // vx%WIDTH/8, vx%8
+        uint8_t col = (vx & (OCTEMU_GFX_WIDTH - 1)) >> 3, col2, r = vx & 7; // vx%WIDTH/8, vx%8
         if (r)
-            col2 = col + 1 & (OCTEMU_GFX_WIDTH >> 3) - 1; // (col+1)%(WIDTH/8)
+            col2 = (col + 1) & ((OCTEMU_GFX_WIDTH >> 3) - 1); // (col+1)%(WIDTH/8)
         emu->v[0xF] = 0;
         for (uint8_t i = 0; i < n; i++) {
-            uint8_t *row = emu->gfx[vy + i & OCTEMU_GFX_HEIGHT - 1]; // (vy+i)%HEIGHT
+            uint8_t *row = emu->gfx[(vy + i) & (OCTEMU_GFX_HEIGHT - 1)]; // (vy+i)%HEIGHT
             uint8_t val = emu->mem[emu->i + i] >> r;
             emu->v[0xF] |= (val & row[col]) != 0;
             row[col] ^= val;
             if (r) {
-                val = emu->mem[emu->i + i] << 8 - r;
+                val = emu->mem[emu->i + i] << (8 - r);
                 emu->v[0xF] |= (val & row[col2]) != 0;
                 row[col2] ^= val;
             }

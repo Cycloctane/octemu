@@ -36,7 +36,7 @@ static atomic_bool sound = false;
 static pthread_mutex_t gfx_lock = PTHREAD_MUTEX_INITIALIZER;
 static bool gfx_reload = false;
 
-static pthread_t eval_thread;
+static pthread_t *eval_thread = NULL;
 
 static void *eval_loop(void *arg) {
     const uint16_t interval_us = 1000000 / OCTEMU_FREQ_HZ;
@@ -104,8 +104,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
         audio_samples[i * 2] = 192;
         audio_samples[i * 2 + 1] = 64;
     }
-
-    if (pthread_create(&eval_thread, NULL, &eval_loop, NULL)) {
+    eval_thread = malloc(sizeof(pthread_t));
+    if (!eval_thread || pthread_create(eval_thread, NULL, &eval_loop, NULL)) {
         fputs("Failed to create eval thread\n", stderr);
         return SDL_APP_FAILURE;
     }
@@ -130,7 +130,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
         for (int y = 0; y < OCTEMU_GFX_HEIGHT; y++) {
             for (int x = 0; x < (OCTEMU_GFX_WIDTH >> 3); x++) {
                 for (int bit = 0; bit < 8; bit++) {
-                    if (gfx_buffer[y][x] & (1 << 7 - bit)) {
+                    if (gfx_buffer[y][x] & (1 << (7 - bit))) {
                         const SDL_FRect rect = {(x * 8 + bit) * 10, y * 10, 10, 10};
                         SDL_RenderFillRect(renderer, &rect);
                     }
@@ -192,8 +192,11 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
 }
 
 void SDL_AppQuit(void *appstate, SDL_AppResult result) {
-    atomic_store(&status, 0);
-    pthread_join(eval_thread, NULL);
+    if (eval_thread) {
+        atomic_store(&status, 0);
+        pthread_join(*eval_thread, NULL);
+        free(eval_thread);
+    }
     if (emu_core)
         octemu_free(emu_core);
 }
