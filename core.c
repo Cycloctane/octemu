@@ -175,7 +175,7 @@ int octemu_eval(OctEmu *emu, const uint16_t keystroke) {
         break;
     case 0xD: { // mov gfx(vx, vy..), [I]..[I+n-1]
         const uint8_t vx = emu->v[ins_x], vy = emu->v[ins_y], n = ins & 0xF;
-        if (emu->i + n > OCTEMU_MEM_SIZE)
+        if (emu->i > OCTEMU_MEM_SIZE - n)
             goto err_i_memory;
         uint8_t col = (vx & (OCTEMU_GFX_WIDTH - 1)) >> 3, col2, r = vx & 7; // vx%WIDTH/8, vx%8
         if (r)
@@ -237,7 +237,7 @@ int octemu_eval(OctEmu *emu, const uint16_t keystroke) {
             emu->i = 0 + (emu->v[ins_x] & 0xF) * 5;
             break;
         case 0x33: // mov [I]..[I+2], bcd(vx)
-            if (emu->i + 2 >= OCTEMU_MEM_SIZE || emu->i < 0x200)
+            if (emu->i >= OCTEMU_MEM_SIZE - 2 || emu->i < 0x200)
                 goto err_i_memory;
             uint8_t remain = emu->v[ins_x];
             emu->mem[emu->i] = remain / 100;
@@ -247,13 +247,13 @@ int octemu_eval(OctEmu *emu, const uint16_t keystroke) {
             emu->mem[emu->i + 2] = remain;
             break;
         case 0x55: // mov [I], v0..vx
-            if (emu->i + ins_x >= OCTEMU_MEM_SIZE || emu->i < 0x200)
+            if (emu->i >= OCTEMU_MEM_SIZE - ins_x || emu->i < 0x200)
                 goto err_i_memory;
             memcpy(emu->mem + emu->i, emu->v, (ins_x + 1) * sizeof(uint8_t));
             emu->i += ins_x + 1;
             break;
         case 0x65: // mov v0..vx, [I]
-            if (emu->i + ins_x >= OCTEMU_MEM_SIZE)
+            if (emu->i >= OCTEMU_MEM_SIZE - ins_x)
                 goto err_i_memory;
             memcpy(emu->v, emu->mem + emu->i, (ins_x + 1) * sizeof(uint8_t));
             emu->i += ins_x + 1;
