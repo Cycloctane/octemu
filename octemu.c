@@ -15,6 +15,8 @@
 #include "core.h"
 
 #define OCTEMU_FREQ_HZ 600
+#define OCTEMU_FOREGROUND_RGB 42,161,152
+#define OCTEMU_BACKGROUND_RGB 0,43,54
 
 static const SDL_Scancode keymapping[16] = {
     SDL_SCANCODE_1, SDL_SCANCODE_2, SDL_SCANCODE_3, SDL_SCANCODE_4,
@@ -29,16 +31,16 @@ static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
 static SDL_AudioStream *audio_stream = NULL;
 static OctEmu *emu_core = NULL;
+static pthread_t *eval_thread = NULL;
 
 static atomic_uchar status = 1;     // 0: exiting, 1: running, 2: paused
 static atomic_ushort keystroke = 0; // 0: none, 0-15 bit: keypad[0-15]
 static atomic_bool sound = false;
 static pthread_mutex_t gfx_lock = PTHREAD_MUTEX_INITIALIZER;
-static bool gfx_reload = false;
-
-static pthread_t *eval_thread = NULL;
+static bool gfx_reload = true;
 
 static void *eval_loop(void *arg) {
+    // assert(emu_core);
     const uint16_t interval_us = 1000000 / OCTEMU_FREQ_HZ;
     uint16_t timer = 0;
     srand((unsigned int)time(NULL));
@@ -49,23 +51,23 @@ static void *eval_loop(void *arg) {
         }
         const uint16_t next_ins = octemu_peek_ins(emu_core);
         const bool update_gfx = next_ins == 0x00E0 || (next_ins & 0xF000) >> 12 == 0xD;
-        if (update_gfx) {
+        if (update_gfx)
             pthread_mutex_lock(&gfx_lock);
-        }
         int err = octemu_eval(emu_core, atomic_load(&keystroke));
         if (update_gfx) {
             gfx_reload = true;
             pthread_mutex_unlock(&gfx_lock);
         }
         if (err) {
+            atomic_store(&sound, 0);
             fputs("Emulator halted...", stderr);
             return NULL;
         }
+        atomic_store(&sound, emu_core->sound != 0);
         usleep(interval_us);
         timer += interval_us;
         if (timer >= 16666) {
             octemu_tick(emu_core);
-            atomic_store(&sound, emu_core->sound != 0);
             timer = 0;
         }
     }
@@ -83,12 +85,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     if (octemu_load_rom(emu_core, argv[1]))
         return SDL_APP_FAILURE;
 
-    SDL_SetAppMetadata("octemu", NULL, "top.octane.octemu");
+    SDL_SetAppMetadata("octemu", NULL, NULL);
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) ||
         !SDL_CreateWindowAndRenderer(
             "octemu", 640, 320, SDL_WINDOW_RESIZABLE, &window, &renderer) ||
         !SDL_SetRenderLogicalPresentation(
-            renderer, 640, 320, SDL_LOGICAL_PRESENTATION_STRETCH)) {
+            renderer, 64, 32, SDL_LOGICAL_PRESENTATION_STRETCH)) {
         fputs(SDL_GetError(), stderr);
         return SDL_APP_FAILURE;
     }
@@ -115,6 +117,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 SDL_AppResult SDL_AppIterate(void *appstate) {
     static uint8_t gfx_buffer[OCTEMU_GFX_HEIGHT][OCTEMU_GFX_WIDTH / 8];
     bool draw = false;
+
+    if ((atomic_load(&status) == 1) && atomic_load(&sound)) {
+        if (SDL_GetAudioStreamQueued(audio_stream) < 100 * sizeof(uint8_t))
+            SDL_PutAudioStreamData(audio_stream, audio_samples, sizeof(audio_samples));
+    } else if (SDL_GetAudioStreamQueued(audio_stream))
+        SDL_ClearAudioStream(audio_stream);
+
     pthread_mutex_lock(&gfx_lock);
     if (gfx_reload) {
         memcpy(gfx_buffer, emu_core->gfx, sizeof(gfx_buffer));
@@ -124,28 +133,21 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     pthread_mutex_unlock(&gfx_lock);
 
     if (draw) {
-        SDL_SetRenderDrawColor(renderer, 0, 43, 54, 255);
+        SDL_SetRenderDrawColor(renderer, OCTEMU_BACKGROUND_RGB, 255);
         SDL_RenderClear(renderer);
-        SDL_SetRenderDrawColor(renderer, 42, 161, 152, 255);
+        SDL_SetRenderDrawColor(renderer, OCTEMU_FOREGROUND_RGB, 255);
         for (int y = 0; y < OCTEMU_GFX_HEIGHT; y++) {
             for (int x = 0; x < (OCTEMU_GFX_WIDTH >> 3); x++) {
                 for (int bit = 0; bit < 8; bit++) {
                     if (gfx_buffer[y][x] & (1 << (7 - bit))) {
-                        const SDL_FRect rect = {(x * 8 + bit) * 10, y * 10, 10, 10};
-                        SDL_RenderFillRect(renderer, &rect);
+                        SDL_RenderPoint(renderer, x * 8 + bit, y);
                     }
                 }
             }
         }
         SDL_RenderPresent(renderer);
     }
-
-    if (atomic_load(&sound)) {
-        if (SDL_GetAudioStreamQueued(audio_stream) < 100 * sizeof(uint8_t)) // 100ms buffer
-            SDL_PutAudioStreamData(audio_stream, audio_samples, sizeof(audio_samples));
-    } else if (SDL_GetAudioStreamQueued(audio_stream))
-        SDL_ClearAudioStream(audio_stream);
-
+    SDL_Delay(2);
     return SDL_APP_CONTINUE;
 }
 
@@ -158,10 +160,17 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
             pthread_mutex_unlock(&gfx_lock);
         }
     } else if (event->type == SDL_EVENT_KEY_DOWN) {
+        for (int i = 0; i < 16; i++) {
+            if (event->key.scancode == keymapping[i]) {
+                atomic_fetch_or(&keystroke, 1 << OctEmu_Keypad[i]);
+                break;
+            }
+        }
+    } else if (event->type == SDL_EVENT_KEY_UP) {
         switch (event->key.scancode) {
         case SDL_SCANCODE_ESCAPE:
             return SDL_APP_SUCCESS;
-        case SDL_SCANCODE_SPACE: {
+        case SDL_SCANCODE_SPACE: { // pause/resume
             const uint8_t current_status = atomic_load(&status);
             if (current_status == 1) {
                 atomic_store(&status, 2);
@@ -175,16 +184,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
         default:
             for (int i = 0; i < 16; i++) {
                 if (event->key.scancode == keymapping[i]) {
-                    atomic_fetch_or(&keystroke, 1 << OctEmu_Keypad[i]);
+                    atomic_fetch_and(&keystroke, ~(1 << OctEmu_Keypad[i]));
                     break;
                 }
-            }
-        }
-    } else if (event->type == SDL_EVENT_KEY_UP) {
-        for (int i = 0; i < 16; i++) {
-            if (event->key.scancode == keymapping[i]) {
-                atomic_fetch_and(&keystroke, ~(1 << OctEmu_Keypad[i]));
-                break;
             }
         }
     }
