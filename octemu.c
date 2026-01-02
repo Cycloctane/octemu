@@ -43,6 +43,7 @@ static atomic_ushort keystroke = 0; // 0: none, 0-15 bit: keypad[0-15]
 static atomic_bool sound = false;
 static pthread_mutex_t gfx_lock = PTHREAD_MUTEX_INITIALIZER;
 static bool gfx_reload = true;
+static bool screenshot = false;
 
 static void *eval_loop(void *arg) {
     // assert(emu_core);
@@ -86,6 +87,24 @@ start:
         }
     }
     return NULL;
+}
+
+static int printscreen() {
+    SDL_Surface *surface = SDL_RenderReadPixels(renderer, NULL);
+    if (!surface) {
+        fprintf(stderr, "Failed to take screenshot: %s\n", SDL_GetError());
+        return 1;
+    }
+    const time_t current_time = time(NULL);
+    char file[27];
+    strftime(file, sizeof(file), "octemu_%Y%m%d_%H%M%S.bmp", localtime(&current_time));
+    if (!SDL_SaveBMP(surface, file)) {
+        fprintf(stderr, "Failed to save screenshot: %s\n", SDL_GetError());
+        SDL_DestroySurface(surface);
+        return 1;
+    }
+    SDL_DestroySurface(surface);
+    return 0;
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
@@ -146,7 +165,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     }
     pthread_mutex_unlock(&gfx_lock);
 
-    if (draw) {
+    if (draw || screenshot) {
         SDL_SetRenderDrawColor(renderer, OCTEMU_BACKGROUND_RGB, 255);
         SDL_RenderClear(renderer);
         SDL_SetRenderDrawColor(renderer, OCTEMU_FOREGROUND_RGB, 255);
@@ -158,6 +177,10 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
                     }
                 }
             }
+        }
+        if (screenshot) {
+            printscreen();
+            screenshot = false;
         }
         SDL_RenderPresent(renderer);
     }
@@ -199,6 +222,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
             if (atomic_load(&status) == PAUSED)
                 SDL_SetWindowTitle(window, "octemu");
             atomic_store(&status, RESET);
+            break;
+        case SDL_SCANCODE_F12: // screenshot
+            screenshot = true;
             break;
         default:
             for (int i = 0; i < 16; i++) {
