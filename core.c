@@ -41,18 +41,32 @@ OctEmu *octemu_new() {
     OctEmu *emu = malloc(sizeof(OctEmu));
     if (!emu)
         fputs("Failed to create OctEmu\n", stderr);
-    else
-        octemu_reset(emu);
+    else {
+        memset(emu, 0, sizeof(OctEmu));
+        memcpy(emu->mem, sprites, sizeof(sprites));
+        emu->pc = 0x200;
+    }
     return emu;
 }
 
 void octemu_reset(OctEmu *emu) {
-    memset(emu, 0, sizeof(OctEmu));
-    memcpy(emu->mem, sprites, sizeof(sprites));
+    emu->sp = emu->i = emu->delay = emu->sound = emu->keypad = 0;
     emu->pc = 0x200;
+    memset(emu->v, 0, sizeof(emu->v));
+    memset(emu->stack, 0, sizeof(emu->stack));
+    if (emu->rom) {
+        memcpy(emu->mem + 0x200, emu->rom, emu->rom_size);
+        memset(emu->mem + 0x200 + emu->rom_size, 0, OCTEMU_MEM_SIZE - 0x200 - emu->rom_size);
+    } else
+        memset(emu->mem + 0x200, 0, OCTEMU_MEM_SIZE - 0x200);
+    memset(emu->gfx, 0, sizeof(emu->gfx));
 }
 
-void octemu_free(OctEmu *emu) { free(emu); }
+void octemu_free(OctEmu *emu) {
+    if (emu->rom)
+        free(emu->rom);
+    free(emu);
+}
 
 static inline int arithmetic_eval(OctEmu *emu, const uint16_t ins) {
     // assert(ins >> 12 == 0x8);
@@ -258,6 +272,12 @@ int octemu_eval(OctEmu *emu, const uint16_t keystroke) {
             memcpy(emu->v, emu->mem + emu->i, (ins_x + 1) * sizeof(uint8_t));
             emu->i += ins_x + 1;
             break;
+#ifdef OCTEMU_HCF
+        case 0xCF: // hcf
+            emu->pc -= 2;
+            emu->sound = 0xFF;
+            break;
+#endif // OCTEMU_HCF
         default:
             goto err_invalid_ins;
         }
@@ -288,20 +308,64 @@ void octemu_tick(OctEmu *emu) {
         --emu->sound;
 }
 
-int octemu_load_rom(OctEmu *emu, const char *rom_path) {
+int octemu_load_rom_file(OctEmu *emu, const char *rom_path) {
+    if (emu->rom) {
+        fputs("ROM already loaded\n", stderr);
+        return 1;
+    }
     FILE *f = fopen(rom_path, "rb");
     if (!f) {
         fprintf(stderr, "Failed to open ROM file %s: %s\n", rom_path, strerror(errno));
         return 1;
     }
     fseek(f, 0, SEEK_END);
-    if (ftell(f) > OCTEMU_MEM_SIZE - 0x200) {
+    const long size = ftell(f);
+    if ((size < 2) || (size > OCTEMU_MEM_SIZE - 0x200)) {
         fclose(f);
-        fputs("ROM too large\n", stderr);
+        fputs("Invalid ROM size\n", stderr);
         return 1;
     }
     rewind(f);
-    fread(emu->mem + 0x200, sizeof(uint8_t), OCTEMU_MEM_SIZE - 0x200, f);
+    emu->rom = malloc(size);
+    if (!emu->rom) {
+        fclose(f);
+        return 1;
+    } else if (fread(emu->rom, sizeof(uint8_t), size, f) != size) {
+        fputs("Failed to load ROM\n", stderr);
+        free(emu->rom);
+        emu->rom = NULL;
+        fclose(f);
+        return 1;
+    }
+    emu->rom_size = size;
+    memcpy(emu->mem + 0x200, emu->rom, emu->rom_size);
     fclose(f);
     return 0;
+}
+
+int octemu_load_rom(OctEmu *emu, const uint8_t *rom_data, const size_t size) {
+    if (emu->rom) {
+        fputs("ROM already loaded\n", stderr);
+        return 1;
+    }
+    if ((size < 2) || (size > OCTEMU_MEM_SIZE - 0x200)) {
+        fputs("Invalid ROM size\n", stderr);
+        return 1;
+    }
+    emu->rom = malloc(size);
+    if (!emu->rom)
+        return 1;
+    memcpy(emu->rom, rom_data, size);
+    emu->rom_size = size;
+    memcpy(emu->mem + 0x200, emu->rom, emu->rom_size);
+    return 0;
+}
+
+void octemu_clear_rom(OctEmu *emu) {
+    if (emu->rom) {
+        free(emu->rom);
+        emu->rom = NULL;
+        emu->rom_size = 0;
+    }
+    octemu_reset(emu);
 }

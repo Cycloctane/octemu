@@ -18,6 +18,11 @@
 #define OCTEMU_FOREGROUND_RGB 42,161,152
 #define OCTEMU_BACKGROUND_RGB 0,43,54
 
+#define EXITING 0
+#define RUNNING 1
+#define PAUSED 2
+#define RESET 3
+
 static const SDL_Scancode keymapping[16] = {
     SDL_SCANCODE_1, SDL_SCANCODE_2, SDL_SCANCODE_3, SDL_SCANCODE_4,
     SDL_SCANCODE_Q, SDL_SCANCODE_W, SDL_SCANCODE_E, SDL_SCANCODE_R,
@@ -33,7 +38,7 @@ static SDL_AudioStream *audio_stream = NULL;
 static OctEmu *emu_core = NULL;
 static pthread_t *eval_thread = NULL;
 
-static atomic_uchar status = 1;     // 0: exiting, 1: running, 2: paused
+static atomic_uchar status = RUNNING;
 static atomic_ushort keystroke = 0; // 0: none, 0-15 bit: keypad[0-15]
 static atomic_bool sound = false;
 static pthread_mutex_t gfx_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -42,12 +47,21 @@ static bool gfx_reload = true;
 static void *eval_loop(void *arg) {
     // assert(emu_core);
     const uint16_t interval_us = 1000000 / OCTEMU_FREQ_HZ;
-    uint16_t timer = 0;
+    uint16_t timer;
+start:
+    timer = 0;
     srand((unsigned int)time(NULL));
-    for (uint8_t s = 2; s; s = atomic_load(&status)) {
-        if (s == 2) {
+    for (uint8_t s = PAUSED; s; s = atomic_load(&status)) {
+        if (s == PAUSED) {
             usleep(200000);
             continue;
+        } else if (s == RESET) {
+            pthread_mutex_lock(&gfx_lock);
+            octemu_reset(emu_core);
+            gfx_reload = true;
+            pthread_mutex_unlock(&gfx_lock);
+            atomic_store(&status, RUNNING);
+            goto start;
         }
         const uint16_t next_ins = octemu_peek_ins(emu_core);
         const bool update_gfx = next_ins == 0x00E0 || (next_ins & 0xF000) >> 12 == 0xD;
@@ -82,7 +96,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     emu_core = octemu_new();
     if (!emu_core)
         return SDL_APP_FAILURE;
-    if (octemu_load_rom(emu_core, argv[1]))
+    if (octemu_load_rom_file(emu_core, argv[1]))
         return SDL_APP_FAILURE;
 
     SDL_SetAppMetadata("octemu", NULL, NULL);
@@ -118,7 +132,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     static uint8_t gfx_buffer[OCTEMU_GFX_HEIGHT][OCTEMU_GFX_WIDTH / 8];
     bool draw = false;
 
-    if ((atomic_load(&status) == 1) && atomic_load(&sound)) {
+    if ((atomic_load(&status) == RUNNING) && atomic_load(&sound)) {
         if (SDL_GetAudioStreamQueued(audio_stream) < 100 * sizeof(uint8_t))
             SDL_PutAudioStreamData(audio_stream, audio_samples, sizeof(audio_samples));
     } else if (SDL_GetAudioStreamQueued(audio_stream))
@@ -172,15 +186,20 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
             return SDL_APP_SUCCESS;
         case SDL_SCANCODE_SPACE: { // pause/resume
             const uint8_t current_status = atomic_load(&status);
-            if (current_status == 1) {
-                atomic_store(&status, 2);
+            if (current_status == RUNNING) {
+                atomic_store(&status, PAUSED);
                 SDL_SetWindowTitle(window, "octemu (paused)");
-            } else if (current_status == 2) {
-                atomic_store(&status, 1);
+            } else if (current_status == PAUSED) {
+                atomic_store(&status, RUNNING);
                 SDL_SetWindowTitle(window, "octemu");
             }
             break;
         }
+        case SDL_SCANCODE_F5: // reset
+            if (atomic_load(&status) == PAUSED)
+                SDL_SetWindowTitle(window, "octemu");
+            atomic_store(&status, RESET);
+            break;
         default:
             for (int i = 0; i < 16; i++) {
                 if (event->key.scancode == keymapping[i]) {
@@ -195,7 +214,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
 
 void SDL_AppQuit(void *appstate, SDL_AppResult result) {
     if (eval_thread) {
-        atomic_store(&status, 0);
+        atomic_store(&status, EXITING);
         pthread_join(*eval_thread, NULL);
         free(eval_thread);
     }
