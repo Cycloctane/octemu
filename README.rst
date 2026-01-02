@@ -33,4 +33,11 @@ Keypad mapping
 
 Space: Pause/Resume
 
+Esc: Quit
 
+F5: Reset the emulator and reload ROM
+
+F12: Save screenshot to current directory
+
+.. image:: img/tetris.png
+    :alt: octemu running tetris
