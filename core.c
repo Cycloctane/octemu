@@ -50,7 +50,7 @@ OctEmu *octemu_new() {
 }
 
 void octemu_reset(OctEmu *emu) {
-    emu->sp = emu->i = emu->delay = emu->sound = emu->keypad = 0;
+    emu->i = emu->sp = emu->delay = emu->sound = emu->gfx_dirty = emu->keypad = 0;
     emu->pc = 0x200;
     memset(emu->v, 0, sizeof(emu->v));
     memset(emu->stack, 0, sizeof(emu->stack));
