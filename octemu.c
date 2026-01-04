@@ -21,7 +21,8 @@
 #define EXITING 0
 #define RUNNING 1
 #define PAUSED 2
-#define RESET 3
+#define HALTED 3
+#define RESET 4
 
 #define load(var) atomic_load_explicit(&var, memory_order_acquire)
 #define store(var, val) atomic_store_explicit(&var, val, memory_order_release)
@@ -58,7 +59,7 @@ start:
     timer = 0;
     srand((unsigned int)time(NULL));
     for (uint8_t s = PAUSED; s; s = load(status)) {
-        if (s == PAUSED) {
+        if (s == PAUSED || s == HALTED) {
             usleep(200000);
             continue;
         } else if (s == RESET) {
@@ -73,8 +74,9 @@ start:
 
         if (octemu_eval(emu_core, atomic_load(&keystroke))) {
             store(sound, 0);
-            fputs("Emulator halted...", stderr);
-            return NULL;
+            fputs("Emulator halted...\n", stderr);
+            store(status, HALTED);
+            continue;
         }
         if (emu_core->gfx_dirty) {
             pthread_mutex_lock(&gfx_lock);
