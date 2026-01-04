@@ -179,9 +179,9 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
                 for (int bit = 0; bit < 8; bit++) {
                     const uint16_t pos = y * OCTEMU_GFX_WIDTH + x * 8 + bit;
                     if (local_buffer[y][x] & (1 << (7 - bit)))
-                        pixels[pos] = OCTEMU_FOREGROUND_RGB & 0xFFFFFF | 0xFF000000;
+                        pixels[pos] = (OCTEMU_FOREGROUND_RGB & 0xFFFFFF) | 0xFF000000;
                     else
-                        pixels[pos] = OCTEMU_BACKGROUND_RGB & 0xFFFFFF | 0xFF000000;
+                        pixels[pos] = (OCTEMU_BACKGROUND_RGB & 0xFFFFFF) | 0xFF000000;
                 }
             }
         }
