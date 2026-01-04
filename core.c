@@ -298,12 +298,6 @@ err_i_memory:
     return 1;
 }
 
-uint16_t octemu_peek_ins(const OctEmu *emu) {
-    if (emu->pc > OCTEMU_MEM_SIZE - 2)
-        return 0;
-    return emu->mem[emu->pc] << 8 | emu->mem[emu->pc + 1];
-}
-
 void octemu_tick(OctEmu *emu) {
     if (emu->delay)
         --emu->delay;
