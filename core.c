@@ -118,6 +118,7 @@ int octemu_eval(OctEmu *emu, const uint16_t keystroke) {
     }
     const uint16_t ins = emu->mem[emu->pc] << 8 | emu->mem[emu->pc + 1];
     emu->pc += 2;
+    emu->gfx_dirty = false;
     switch (ins >> 12) {
     case 0:
         if (ins >> 8)
@@ -125,6 +126,7 @@ int octemu_eval(OctEmu *emu, const uint16_t keystroke) {
         switch (ins & 0xFF) {
         case 0xE0: // cls
             memset(emu->gfx, 0, sizeof(emu->gfx));
+            emu->gfx_dirty = true;
             break;
         case 0xEE: // ret
             if (!emu->sp) {
@@ -206,6 +208,7 @@ int octemu_eval(OctEmu *emu, const uint16_t keystroke) {
                 row[col2] ^= val;
             }
         }
+        emu->gfx_dirty = true;
         break;
     }
     case 0xE:

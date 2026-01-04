@@ -1,6 +1,7 @@
 #ifndef _OCTEMU_CORE_H_
 #define _OCTEMU_CORE_H_
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #define OCTEMU_STACK_SIZE 16
@@ -12,19 +13,20 @@ extern const uint8_t OctEmu_Keypad[16];
 
 typedef struct OctEmu {
     // registers
-    uint8_t v[0x10], sp;
     uint16_t pc, i;
+    uint8_t v[0x10], sp;
     // timers
     uint8_t delay, sound;
     // states
+    bool gfx_dirty;
     uint16_t keypad;
     // memory
     uint16_t stack[OCTEMU_STACK_SIZE];
     uint8_t mem[OCTEMU_MEM_SIZE];
     uint8_t gfx[OCTEMU_GFX_HEIGHT][OCTEMU_GFX_WIDTH / 8];
     // ROM
-    uint8_t *rom;
     uint16_t rom_size;
+    uint8_t *rom;
 } OctEmu;
 
 OctEmu *octemu_new();
