@@ -6,30 +6,39 @@
 
 #define OCTEMU_STACK_SIZE 16
 #define OCTEMU_MEM_SIZE 4096
-#define OCTEMU_GFX_WIDTH 64
-#define OCTEMU_GFX_HEIGHT 32
+#define OCTEMU_GFX_WIDTH 128
+#define OCTEMU_GFX_HEIGHT 64
 
 extern const uint8_t OctEmu_Keypad[16];
 
+typedef enum OctEmuMode {
+    OCTEMU_MODE_CHIP8,
+    OCTEMU_MODE_SCHIP,
+    OCTEMU_MODE_OCTO
+} OctEmuMode;
+
 typedef struct OctEmu {
+    // mode
+    OctEmuMode mode;
     // registers
     uint16_t pc, i;
     uint8_t v[0x10], sp;
     // timers
     uint8_t delay, sound;
     // states
-    bool gfx_dirty;
+    bool hires, gfx_dirty;
     uint16_t keypad;
     // memory
     uint16_t stack[OCTEMU_STACK_SIZE];
     uint8_t mem[OCTEMU_MEM_SIZE];
     uint8_t gfx[OCTEMU_GFX_HEIGHT][OCTEMU_GFX_WIDTH / 8];
+    uint8_t rpl[0x10];
     // ROM
     uint16_t rom_size;
     uint8_t *rom;
 } OctEmu;
 
-OctEmu *octemu_new();
+OctEmu *octemu_new(OctEmuMode);
 void octemu_free(OctEmu *);
 
 /* Reset emulator states and reload ROM (or empty the memory if no ROM loaded). */
@@ -37,10 +46,10 @@ void octemu_reset(OctEmu *);
 
 /**
  * Execute one instruction cycle.
- * @param keystroke Current keypad state bitmask
+ * @param keypad Current keypad state bitmask
  * @return 0 on success, 1 if any error occurs
  */
-int octemu_eval(OctEmu *, const uint16_t keystroke);
+int octemu_eval(OctEmu *, const uint16_t keypad);
 
 /* Decrease internal timers by one. */
 void octemu_tick(OctEmu *);

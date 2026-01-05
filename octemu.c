@@ -14,7 +14,8 @@
 
 #include "core.h"
 
-#define OCTEMU_FREQ_HZ 600
+#define OCTEMU_FREQ_CHIP8 900
+#define OCTEMU_FREQ_SCHIP 9000
 #define OCTEMU_FOREGROUND_RGB 0x2AA198
 #define OCTEMU_BACKGROUND_RGB 0x002B36
 
@@ -53,7 +54,7 @@ static bool screenshot = false; // not shared
 
 static void *eval_loop(void *arg) {
     // assert(emu_core);
-    const int cycles = OCTEMU_FREQ_HZ / 60; // cycles per frame
+    const int cycles = *(int *)arg / 60; // cycles per frame
     srand((unsigned int)time(NULL));
     for (uint8_t s = PAUSED; s; s = load(status)) {
         if (s == PAUSED || s == HALTED) {
@@ -115,13 +116,56 @@ static int printscreen() {
     return 0;
 }
 
+static void print_usage(const char *argv0) {
+    printf("Usage: %s [option...] <rom_file>\n\nOPTIONS\n", argv0);
+    puts("-m chip8|schip|octo\tmode (default octo)");
+    puts("-f <uint>\t\tfrequency/Hz (default 900Hz in chip8 mode, 9000Hz in schip/octo mode)\n");
+}
+
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s <rom_file>\n", argv[0]);
+    int opt;
+    static int freq = 0;
+    OctEmuMode mode = OCTEMU_MODE_OCTO;
+    while ((opt = getopt(argc, argv, "f:m:?h")) != -1) {
+        switch (opt) {
+        case 'f':
+            freq = atoi(optarg);
+            if (freq < 60 || freq > 60000) { // 1 - 1000 cycles per frame
+                fputs("Invalid frequency\n", stderr);
+                print_usage(argv[0]);
+                return SDL_APP_FAILURE;
+            }
+            break;
+        case 'm':
+            if (!strcmp(optarg, "chip8"))
+                mode = OCTEMU_MODE_CHIP8;
+            else if (!strcmp(optarg, "schip"))
+                mode = OCTEMU_MODE_SCHIP;
+            else if (!strcmp(optarg, "octo"))
+                mode = OCTEMU_MODE_OCTO;
+            else {
+                fputs("Invalid mode\n", stderr);
+                print_usage(argv[0]);
+                return SDL_APP_FAILURE;
+            }
+            break;
+        case '?':
+        case 'h':
+            print_usage(argv[0]);
+            return SDL_APP_SUCCESS;
+        default:
+            print_usage(argv[0]);
+            return SDL_APP_FAILURE;
+        }
+    }
+    if (optind >= argc) {
+        print_usage(argv[0]);
         return SDL_APP_FAILURE;
     }
-    emu_core = octemu_new();
-    if (!emu_core || octemu_load_rom_file(emu_core, argv[1]))
+    if (!freq)
+        freq = (mode == OCTEMU_MODE_CHIP8) ? OCTEMU_FREQ_CHIP8 : OCTEMU_FREQ_SCHIP;
+    emu_core = octemu_new(mode);
+    if (!emu_core || octemu_load_rom_file(emu_core, argv[optind]))
         return SDL_APP_FAILURE;
 
     SDL_SetAppMetadata("octemu", NULL, NULL);
@@ -129,11 +173,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
         !SDL_CreateWindowAndRenderer(
             "octemu", 640, 320, SDL_WINDOW_RESIZABLE, &window, &renderer) ||
         !SDL_SetRenderLogicalPresentation(
-            renderer, 64, 32, SDL_LOGICAL_PRESENTATION_STRETCH)) {
+            renderer, OCTEMU_GFX_WIDTH, OCTEMU_GFX_HEIGHT, SDL_LOGICAL_PRESENTATION_STRETCH)) {
         fputs(SDL_GetError(), stderr);
         return SDL_APP_FAILURE;
     }
-    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 64, 32);
+    texture = SDL_CreateTexture(
+        renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
+        OCTEMU_GFX_WIDTH, OCTEMU_GFX_HEIGHT);
     if (!texture || !SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST)) {
         fputs(SDL_GetError(), stderr);
         return SDL_APP_FAILURE;
@@ -151,7 +197,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
         audio_samples[i * 2 + 1] = 64;
     }
     eval_thread = malloc(sizeof(pthread_t));
-    if (!eval_thread || pthread_create(eval_thread, NULL, &eval_loop, NULL)) {
+    if (!eval_thread || pthread_create(eval_thread, NULL, &eval_loop, &freq)) {
         fputs("Failed to create eval thread\n", stderr);
         return SDL_APP_FAILURE;
     }
