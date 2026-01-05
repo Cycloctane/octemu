@@ -50,7 +50,8 @@ OctEmu *octemu_new() {
 }
 
 void octemu_reset(OctEmu *emu) {
-    emu->i = emu->sp = emu->delay = emu->sound = emu->gfx_dirty = emu->keypad = 0;
+    emu->i = emu->sp = emu->delay = emu->sound = emu->keypad = 0;
+    emu->gfx_dirty = true;
     emu->pc = 0x200;
     memset(emu->v, 0, sizeof(emu->v));
     memset(emu->stack, 0, sizeof(emu->stack));
@@ -118,7 +119,6 @@ int octemu_eval(OctEmu *emu, const uint16_t keystroke) {
     }
     const uint16_t ins = emu->mem[emu->pc] << 8 | emu->mem[emu->pc + 1];
     emu->pc += 2;
-    emu->gfx_dirty = false;
     switch (ins >> 12) {
     case 0:
         if (ins >> 8)

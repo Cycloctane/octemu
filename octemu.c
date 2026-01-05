@@ -83,6 +83,7 @@ start:
             memcpy(gfx_buffer, emu_core->gfx, sizeof(gfx_buffer));
             store(gfx_reload, true);
             pthread_mutex_unlock(&gfx_lock);
+            emu_core->gfx_dirty = false;
         }
         store(sound, emu_core->sound != 0);
 
