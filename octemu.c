@@ -14,10 +14,24 @@
 
 #include "core.h"
 
+#ifndef OCTEMU_FREQ_CHIP8
 #define OCTEMU_FREQ_CHIP8 900
+#endif
+#ifndef OCTEMU_FREQ_SCHIP
 #define OCTEMU_FREQ_SCHIP 9000
+#endif
+#ifndef OCTEMU_FOREGROUND_RGB
 #define OCTEMU_FOREGROUND_RGB 0x2AA198
+#endif
+#ifndef OCTEMU_BACKGROUND_RGB
 #define OCTEMU_BACKGROUND_RGB 0x002B36
+#endif
+#ifndef OCTEMU_WINDOW_WIDTH
+#define OCTEMU_WINDOW_WIDTH 640
+#endif
+#ifndef OCTEMU_WINDOW_HEIGHT
+#define OCTEMU_WINDOW_HEIGHT 320
+#endif
 
 #define EXITING 0
 #define RUNNING 1
@@ -119,7 +133,8 @@ static int printscreen() {
 static void print_usage(const char *argv0) {
     printf("Usage: %s [option...] <rom_file>\n\nOPTIONS\n", argv0);
     puts("-m chip8|schip|octo\tmode (default octo)");
-    puts("-f <uint>\t\tfrequency/Hz (default 900Hz in chip8 mode, 9000Hz in schip/octo mode)\n");
+    printf("-f <uint>\t\tfrequency/Hz (default %dHz in chip8 mode, %dHz in schip/octo mode)\n\n",
+           OCTEMU_FREQ_CHIP8, OCTEMU_FREQ_SCHIP);
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
@@ -170,10 +185,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
 
     SDL_SetAppMetadata("octemu", NULL, NULL);
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) ||
-        !SDL_CreateWindowAndRenderer(
-            "octemu", 640, 320, SDL_WINDOW_RESIZABLE, &window, &renderer) ||
-        !SDL_SetRenderLogicalPresentation(
-            renderer, OCTEMU_GFX_WIDTH, OCTEMU_GFX_HEIGHT, SDL_LOGICAL_PRESENTATION_STRETCH)) {
+        !SDL_CreateWindowAndRenderer("octemu", OCTEMU_WINDOW_WIDTH, OCTEMU_WINDOW_HEIGHT,
+                                     SDL_WINDOW_RESIZABLE, &window, &renderer) ||
+        !SDL_SetRenderLogicalPresentation(renderer, OCTEMU_GFX_WIDTH, OCTEMU_GFX_HEIGHT,
+                                          SDL_LOGICAL_PRESENTATION_STRETCH)) {
         fputs(SDL_GetError(), stderr);
         return SDL_APP_FAILURE;
     }
