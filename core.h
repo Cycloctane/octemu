@@ -74,4 +74,7 @@ int octemu_load_rom(OctEmu *, const uint8_t *rom_data, const size_t size);
 /* Clear current ROM. Also reset emulator states and memory. */
 void octemu_clear_rom(OctEmu *);
 
+/* Print emulator's current internal states (to stderr). */
+void octemu_print_states(const OctEmu *);
+
 #endif // _OCTEMU_CORE_H_

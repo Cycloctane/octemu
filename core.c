@@ -95,6 +95,27 @@ void octemu_free(OctEmu *emu) {
         free(emu->rom);
     free(emu);
 }
+
+void octemu_print_states(const OctEmu *emu) {
+    fprintf(stderr, "\nPC: 0x%.4X I: 0x%.4X SP: %d\n", emu->pc, emu->i, emu->sp);
+    for (int i = 0; i < 8; i++)
+        fprintf(stderr, "V%.1X: %.3d ", i, emu->v[i]);
+    fputc('\n', stderr);
+    for (int i = 8; i < 16; i++)
+        fprintf(stderr, "V%.1X: %.3d ", i, emu->v[i]);
+    fputs("\nStack:", stderr);
+    for (uint8_t i = 0; i < emu->sp; i++)
+        fprintf(stderr, " 0x%.4X", emu->stack[i]);
+    fprintf(stderr, "\nHires Mode: %d\nGFX_Dirty: %d", emu->hires, emu->gfx_dirty);
+    fprintf(stderr, "\nDelay Timer: %d\nSound Timer: %d", emu->delay, emu->sound);
+    fputs("\nKeypad State:", stderr);
+    for (int b = 0; b < 16; b++) {
+        if (emu->keypad & 1 << b)
+            fprintf(stderr, " %.1X", b);
+    }
+    fputs("\n\n", stderr);
+}
+
 // 76543210 -> 77665544 33221100
 static inline void expand_uint8(const uint8_t val, uint8_t *left, uint8_t *right) {
     for (uint8_t b = 0; b < 4; b++) {
@@ -346,6 +367,9 @@ static inline void clear_gfx(OctEmu *emu) { memset(emu->gfx, 0, sizeof(emu->gfx)
 int octemu_eval(OctEmu *emu, const uint16_t keypad) {
     if (emu->pc > OCTEMU_MEM_SIZE - 2) {
         fprintf(stderr, "PC memory access out of bound: 0x%.4X\n", emu->pc);
+#if OCTEMU_DEBUG
+        octemu_print_states(emu);
+#endif
         return 1;
     }
     const uint16_t ins = emu->mem[emu->pc] << 8 | emu->mem[emu->pc + 1];
@@ -370,6 +394,9 @@ int octemu_eval(OctEmu *emu, const uint16_t keypad) {
         case 0xEE: // ret
             if (!emu->sp) {
                 fputs("Return from empty stack\n", stderr);
+#ifdef OCTEMU_DEBUG
+                octemu_print_states(emu);
+#endif
                 return 1;
             }
             emu->pc = emu->stack[--emu->sp];
@@ -436,6 +463,9 @@ int octemu_eval(OctEmu *emu, const uint16_t keypad) {
     case 0x2: // call nnn
         if (emu->sp >= OCTEMU_STACK_SIZE) {
             fputs("Stack Overflow\n", stderr);
+#ifdef OCTEMU_DEBUG
+            octemu_print_states(emu);
+#endif
             return 1;
         }
         emu->stack[emu->sp++] = emu->pc;
@@ -598,10 +628,16 @@ int octemu_eval(OctEmu *emu, const uint16_t keypad) {
 
 err_invalid_ins:
     fprintf(stderr, "Invalid instruction %.4X at 0x%.3X\n", ins, emu->pc - 2);
+#ifdef OCTEMU_DEBUG
+    octemu_print_states(emu);
+#endif
     return 1;
 
 err_i_memory:
     fprintf(stderr, "I memory access out of bound: 0x%.4X\n", emu->i);
+#ifdef OCTEMU_DEBUG
+    octemu_print_states(emu);
+#endif
     return 1;
 }
 
