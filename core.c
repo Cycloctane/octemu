@@ -91,7 +91,7 @@ void octemu_reset(OctEmu *emu) {
 }
 
 void octemu_free(OctEmu *emu) {
-    if (emu->rom)
+    if (emu->rom && !emu->rom_external)
         free(emu->rom);
     free(emu);
 }
@@ -678,6 +678,7 @@ int octemu_load_rom_file(OctEmu *emu, const char *rom_path) {
         return 1;
     }
     emu->rom_size = size;
+    emu->rom_external = false;
     memcpy(emu->mem + 0x200, emu->rom, emu->rom_size);
     fclose(f);
     return 0;
@@ -697,13 +698,31 @@ int octemu_load_rom(OctEmu *emu, const uint8_t *rom_data, const size_t size) {
         return 1;
     memcpy(emu->rom, rom_data, size);
     emu->rom_size = size;
+    emu->rom_external = false;
+    memcpy(emu->mem + 0x200, emu->rom, emu->rom_size);
+    return 0;
+}
+
+int octemu_set_rom(OctEmu *emu, const uint8_t *rom_data, const size_t size) {
+    if (emu->rom) {
+        fputs("ROM already loaded\n", stderr);
+        return 1;
+    }
+    if ((size < 2) || (size > OCTEMU_MEM_SIZE - 0x200)) {
+        fputs("Invalid ROM size\n", stderr);
+        return 1;
+    }
+    emu->rom = (uint8_t *)rom_data;
+    emu->rom_size = size;
+    emu->rom_external = true;
     memcpy(emu->mem + 0x200, emu->rom, emu->rom_size);
     return 0;
 }
 
 void octemu_clear_rom(OctEmu *emu) {
     if (emu->rom) {
-        free(emu->rom);
+        if (!emu->rom_external)
+            free(emu->rom);
         emu->rom = NULL;
         emu->rom_size = 0;
     }

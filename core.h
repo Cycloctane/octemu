@@ -34,6 +34,7 @@ typedef struct OctEmu {
     uint8_t gfx[OCTEMU_GFX_HEIGHT][OCTEMU_GFX_WIDTH / 8];
     uint8_t rpl[0x10];
     // ROM
+    bool rom_external;
     uint16_t rom_size;
     uint8_t *rom;
 } OctEmu;
@@ -55,7 +56,7 @@ int octemu_eval(OctEmu *, const uint16_t keypad);
 void octemu_tick(OctEmu *);
 
 /**
- * Load a ROM from file path and copy into emulator memory.
+ * Read ROM data from a file and load it into emulator memory.
  * Cannot load if a ROM is already loaded.
  * @param rom_path Path to the ROM file
  * @return 0 on success, 1 on failure
@@ -63,13 +64,24 @@ void octemu_tick(OctEmu *);
 int octemu_load_rom_file(OctEmu *, const char *rom_path);
 
 /**
- * Load a ROM from buffer and copy into emulator memory.
+ * Copy ROM data from buffer and load it into emulator memory.
  * Cannot load if a ROM is already loaded.
  * @param rom_data Pointer to the ROM data buffer
  * @param size Size of the ROM data buffer
  * @return 0 on success, 1 on failure
  */
 int octemu_load_rom(OctEmu *, const uint8_t *rom_data, const size_t size);
+
+/**
+ * Make the emulator directly uses an externally managed buffer as ROM
+ * (e.g. from .rodata) and load it into emulator memory.
+ * Emulator does not modify or call free() on the given buffer.
+ * Cannot load if a ROM is already loaded.
+ * @param rom_data Pointer to the ROM data buffer
+ * @param size Size of the ROM data buffer
+ * @return 0 on success, 1 on failure
+ */
+int octemu_set_rom(OctEmu *, const uint8_t *rom_data, const size_t size);
 
 /* Clear current ROM. Also reset emulator states and memory. */
 void octemu_clear_rom(OctEmu *);
