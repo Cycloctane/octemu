@@ -310,55 +310,64 @@ static int draw16lr(OctEmu *emu, const uint8_t vx, const uint8_t vy) {
 
 static inline int arithmetic_eval(OctEmu *emu, const uint16_t ins) {
     // assert(ins >> 12 == 0x8);
-    uint8_t *vx = &emu->v[ins_x], *vy = &emu->v[ins_y];
-    uint8_t flag = chip8_mode ? 0 : emu->v[0xF];
+    uint8_t *vx = &emu->v[ins_x], *vy = &emu->v[ins_y], flag;
     switch (ins & 0xF) {
     case 0: // mov vx, vy
         *vx = *vy;
         return 0;
     case 0x1: // or vx, vy
         *vx |= *vy;
+        if (chip8_mode)
+            emu->v[0xF] = 0;
         break;
     case 0x2: // and vx, vy
         *vx &= *vy;
+        if (chip8_mode)
+            emu->v[0xF] = 0;
         break;
     case 0x3: // xor vx, vy
         *vx ^= *vy;
+        if (chip8_mode)
+            emu->v[0xF] = 0;
         break;
     case 0x4: // add vx, vy
         flag = *vx > 0xFF - *vy;
         *vx += *vy;
+        emu->v[0xF] = flag;
         break;
     case 0x5: // sub vx, vy
         flag = *vx >= *vy;
         *vx -= *vy;
+        emu->v[0xF] = flag;
         break;
-    case 0x6: // shr vx
-        if (schip_mode) {
+    case 0x6:
+        if (schip_mode) { // shr vx
             flag = *vx & 1;
             *vx >>= 1;
-        } else {
+        } else { // shr vx, vy
             flag = *vy & 1;
             *vx = *vy >> 1;
         }
+        emu->v[0xF] = flag;
         break;
     case 0x7: // subn vx, vy
         flag = *vy >= *vx;
         *vx = *vy - *vx;
+        emu->v[0xF] = flag;
         break;
-    case 0xE: // shl vx, vy
-        if (schip_mode) {
+    case 0xE:
+        if (schip_mode) { // shl vx
             flag = *vx >> 7;
             *vx <<= 1;
-        } else {
+        } else { // shl vx, vy
             flag = *vy >> 7;
             *vx = *vy << 1;
         }
+        emu->v[0xF] = flag;
         break;
     default:
         return 1;
     }
-    emu->v[0xF] = flag;
     return 0;
 }
 
