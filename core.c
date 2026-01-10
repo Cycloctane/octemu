@@ -374,12 +374,9 @@ static inline int arithmetic_eval(OctEmu *emu, const uint16_t ins) {
 static inline void clear_gfx(OctEmu *emu) { memset(emu->gfx, 0, sizeof(emu->gfx)); }
 
 int octemu_eval(OctEmu *emu, const uint16_t keypad) {
-    if (emu->pc > OCTEMU_MEM_SIZE - 2) {
+    if (emu->pc > OCTEMU_MEM_SIZE - 2 || emu->pc < 0x200) {
         fprintf(stderr, "PC memory access out of bound: 0x%.4X\n", emu->pc);
-#if OCTEMU_DEBUG
-        octemu_print_states(emu);
-#endif
-        return 1;
+        goto err;
     }
     const uint16_t ins = emu->mem[emu->pc] << 8 | emu->mem[emu->pc + 1];
     emu->pc += 2;
@@ -403,10 +400,7 @@ int octemu_eval(OctEmu *emu, const uint16_t keypad) {
         case 0xEE: // ret
             if (!emu->sp) {
                 fputs("Return from empty stack\n", stderr);
-#ifdef OCTEMU_DEBUG
-                octemu_print_states(emu);
-#endif
-                return 1;
+                goto err;
             }
             emu->pc = emu->stack[--emu->sp];
             break;
@@ -472,10 +466,7 @@ int octemu_eval(OctEmu *emu, const uint16_t keypad) {
     case 0x2: // call nnn
         if (emu->sp >= OCTEMU_STACK_SIZE) {
             fputs("Stack Overflow\n", stderr);
-#ifdef OCTEMU_DEBUG
-            octemu_print_states(emu);
-#endif
-            return 1;
+            goto err;
         }
         emu->stack[emu->sp++] = emu->pc;
         emu->pc = ins_nnn;
@@ -636,14 +627,14 @@ int octemu_eval(OctEmu *emu, const uint16_t keypad) {
     return 0;
 
 err_invalid_ins:
-    fprintf(stderr, "Invalid instruction %.4X at 0x%.3X\n", ins, emu->pc - 2);
-#ifdef OCTEMU_DEBUG
-    octemu_print_states(emu);
-#endif
-    return 1;
+    fprintf(stderr, "Invalid instruction %.4X at 0x%.4X\n", ins, emu->pc - 2);
+    goto err;
 
 err_i_memory:
     fprintf(stderr, "I memory access out of bound: 0x%.4X\n", emu->i);
+    goto err;
+
+err:
 #ifdef OCTEMU_DEBUG
     octemu_print_states(emu);
 #endif
