@@ -1,4 +1,3 @@
-#include <pthread.h>
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -56,17 +55,17 @@ static SDL_Renderer *renderer = NULL;
 static SDL_Texture *texture = NULL;
 static SDL_AudioStream *audio_stream = NULL;
 static OctEmu *emu_core = NULL;
-static pthread_t *eval_thread = NULL;
+static SDL_Thread *eval_thread = NULL;
 
 static atomic_uchar status = RUNNING;
 static atomic_ushort keypad = 0; // 0: none, 0-15 bit: keypad[0-15]
 static atomic_bool sound = false, gfx_reload = true;
-static pthread_mutex_t gfx_lock = PTHREAD_MUTEX_INITIALIZER;
+static SDL_Mutex *gfx_lock = NULL;
 static uint8_t gfx_buffer[OCTEMU_GFX_HEIGHT][OCTEMU_GFX_WIDTH / 8];
 
 static bool screenshot = false; // not shared
 
-static void *eval_loop(void *arg) {
+static int eval_loop(void *arg) {
     // assert(emu_core);
     const int cycles = *(int *)arg / 60; // cycles per frame
     srand((unsigned int)time(NULL));
@@ -76,10 +75,10 @@ static void *eval_loop(void *arg) {
             continue;
         } else if (s == RESET) {
             octemu_reset(emu_core);
-            pthread_mutex_lock(&gfx_lock);
+            SDL_LockMutex(gfx_lock);
             memset(gfx_buffer, 0, sizeof(gfx_buffer));
             store(gfx_reload, true);
-            pthread_mutex_unlock(&gfx_lock);
+            SDL_UnlockMutex(gfx_lock);
             store(status, RUNNING);
             continue;
         }
@@ -98,10 +97,10 @@ static void *eval_loop(void *arg) {
             store(status, HALTED);
             continue;
         } else if (emu_core->gfx_dirty) {
-            pthread_mutex_lock(&gfx_lock);
+            SDL_LockMutex(gfx_lock);
             memcpy(gfx_buffer, emu_core->gfx, sizeof(gfx_buffer));
             store(gfx_reload, true);
-            pthread_mutex_unlock(&gfx_lock);
+            SDL_UnlockMutex(gfx_lock);
             emu_core->gfx_dirty = false;
         }
         store(sound, emu_core->sound != 0);
@@ -109,7 +108,7 @@ static void *eval_loop(void *arg) {
         usleep(16666);
         octemu_tick(emu_core);
     }
-    return NULL;
+    return 0;
 }
 
 static int printscreen() {
@@ -189,34 +188,36 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
                                      SDL_WINDOW_RESIZABLE, &window, &renderer) ||
         !SDL_SetRenderLogicalPresentation(renderer, OCTEMU_GFX_WIDTH, OCTEMU_GFX_HEIGHT,
                                           SDL_LOGICAL_PRESENTATION_STRETCH)) {
-        fputs(SDL_GetError(), stderr);
-        return SDL_APP_FAILURE;
+        goto err;
     }
     texture = SDL_CreateTexture(
         renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
         OCTEMU_GFX_WIDTH, OCTEMU_GFX_HEIGHT);
-    if (!texture || !SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST)) {
-        fputs(SDL_GetError(), stderr);
-        return SDL_APP_FAILURE;
-    }
+    if (!texture || !SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST))
+        goto err;
     SDL_SetRenderVSync(renderer, 1);
 
     const SDL_AudioSpec spec = {.channels = 1, .freq = 1000, .format = SDL_AUDIO_U8};
     audio_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, NULL, NULL);
-    if (!audio_stream || !SDL_ResumeAudioStreamDevice(audio_stream)) {
-        fputs(SDL_GetError(), stderr);
-        return SDL_APP_FAILURE;
-    }
+    if (!audio_stream || !SDL_ResumeAudioStreamDevice(audio_stream))
+        goto err;
     for (int i = 0; i < (sizeof(audio_samples) >> 1); i++) {
         audio_samples[i * 2] = 192;
         audio_samples[i * 2 + 1] = 64;
     }
-    eval_thread = malloc(sizeof(pthread_t));
-    if (!eval_thread || pthread_create(eval_thread, NULL, &eval_loop, &freq)) {
-        fputs("Failed to create eval thread\n", stderr);
-        return SDL_APP_FAILURE;
-    }
+
+    gfx_lock = SDL_CreateMutex();
+    if (!gfx_lock)
+        goto err;
+    eval_thread = SDL_CreateThread(eval_loop, "eval_loop", &freq);
+    if (!eval_thread)
+        goto err;
+
     return SDL_APP_CONTINUE;
+
+err:
+    fputs(SDL_GetError(), stderr);
+    return SDL_APP_FAILURE;
 }
 
 SDL_AppResult SDL_AppIterate(void *appstate) {
@@ -229,10 +230,10 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
         SDL_ClearAudioStream(audio_stream);
 
     if (load(gfx_reload)) {
-        pthread_mutex_lock(&gfx_lock);
+        SDL_LockMutex(gfx_lock);
         memcpy(local_buffer, gfx_buffer, sizeof(local_buffer));
         store(gfx_reload, false);
-        pthread_mutex_unlock(&gfx_lock);
+        SDL_UnlockMutex(gfx_lock);
 
         uint32_t *pixels;
         int pitch;
@@ -310,9 +311,10 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
         SDL_DestroyTexture(texture);
     if (eval_thread) {
         store(status, EXITING);
-        pthread_join(*eval_thread, NULL);
-        free(eval_thread);
+        SDL_WaitThread(eval_thread, NULL);
     }
+    if (gfx_lock)
+        SDL_DestroyMutex(gfx_lock);
     if (emu_core)
         octemu_free(emu_core);
 }
