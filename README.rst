@@ -8,9 +8,22 @@ written in C and SDL3.
 Build
 =====
 
-Requirements: SDL3 (libsdl3-dev)::
+Requirements: CMake, SDL3 (libsdl3-dev)::
 
-    make octemu
+    cmake -B build -DCMAKE_BUILD_TYPE=Release
+    cmake --build build
+
+Using Vendored SDL3 Library
+---------------------------
+
+Clone the SDL repository::
+
+    git clone --depth=1 https://github.com/libsdl-org/SDL.git vendor/SDL
+
+Set ``OCTEMU_SDL_PATH`` option in cmake::
+
+    cmake -B build -DCMAKE_BUILD_TYPE=Release -DOCTEMU_SDL_PATH=./vendor/SDL/
+    cmake --build build
 
 Usage
 =====
