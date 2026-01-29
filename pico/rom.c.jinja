@@ -1,0 +1,15 @@
+#include "rom_config.h"
+
+{% for rom in roms %}
+static const unsigned char rom{{ loop.index0 }}[] = {
+	{{ rom.data }}
+};
+{% endfor %}
+
+const OctEmuRom emu_roms[] = {
+{%- for rom in roms %}
+	{"{{ rom.title }}", "{{ rom.mode }}", {{ rom.tickrate }}, rom{{ loop.index0 }}, sizeof(rom{{ loop.index0 }})},
+{%- endfor %}
+};
+
+const unsigned int emu_roms_count = {{ roms|length }};
