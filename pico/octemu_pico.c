@@ -97,9 +97,8 @@ static inline OctEmuMode str2mode(const char *mode_str) {
         return OCTEMU_MODE_OCTO; // default
 }
 
-static const OctEmuRom *menu() {
+static const OctEmuRom *menu(uint *pos) {
     // assert(display);
-    uint pos = 0;
 
     memcpy(&display->vram[7][4], left_arrow, sizeof(left_arrow));
     memcpy(&display->vram[7][60], point, sizeof(point));
@@ -108,7 +107,7 @@ static const OctEmuRom *menu() {
     sh1106_write(display);
 
     while (1) {
-        const char *title = emu_roms[pos].title;
+        const char *title = emu_roms[*pos].title;
         const uint width = strlen(title) * 8;
         uint8_t col = width < 128 ? (128 - width) / 2 : 0;
         memset(&display->vram[2], 0, sizeof(display->vram[2]));
@@ -125,14 +124,14 @@ static const OctEmuRom *menu() {
         uint16_t prev_keypad = 0;
         while (1) {
             const uint16_t keypad = read_keypad();
-            if (prev_keypad & 1 << 1 && !(keypad & 1 << 1) && pos) {
-                --pos;
+            if (prev_keypad & 1 << 1 && !(keypad & 1 << 1)) {
+                *pos = *pos ? *pos - 1 : emu_roms_count - 1;
                 break;
-            } else if (prev_keypad & 1 << 3 && !(keypad & 1 << 3) && pos < emu_roms_count - 1) {
-                ++pos;
+            } else if (prev_keypad & 1 << 3 && !(keypad & 1 << 3)) {
+                *pos = *pos < emu_roms_count - 1 ? *pos + 1 : 0;
                 break;
             } else if (prev_keypad & 1 << 2 && !(keypad & 1 << 2))
-                return &emu_roms[pos];
+                return &emu_roms[*pos];
             prev_keypad = keypad;
             sleep_ms(40);
         }
@@ -140,7 +139,7 @@ static const OctEmuRom *menu() {
 }
 
 // emulator main loop
-static void emu_loop(OctEmu *emu, const OctEmuRom *emu_rom) {
+static void emu_loop(OctEmu *emu, const unsigned int tickrate) {
     // assert(display);
     uint s = RUNNING;
     bool sound = false;
@@ -166,7 +165,7 @@ static void emu_loop(OctEmu *emu, const OctEmuRom *emu_rom) {
 
         int err = 0;
         const uint16_t keypad = read_keypad();
-        for (uint i = 0; i < emu_rom->tickrate; i++) {
+        for (uint i = 0; i < tickrate; i++) {
             err = octemu_eval(emu, keypad);
             if (err)
                 break;
@@ -201,6 +200,8 @@ static void emu_loop(OctEmu *emu, const OctEmuRom *emu_rom) {
             sleep_us(16660);
         octemu_tick(emu);
     }
+    if (sound)
+        stop_sound();
 }
 
 int main() {
@@ -256,9 +257,10 @@ int main() {
     // ready
     gpio_put(25, true);
 
+    uint menu_pos = 0;
     while (1) {
         // select rom
-        const OctEmuRom *emu_rom = emu_roms_count > 1 ? menu() : &emu_roms[0];
+        const OctEmuRom *emu_rom = emu_roms_count > 1 ? menu(&menu_pos) : &emu_roms[0];
         // load rom
         if (octemu_set_rom(emu, emu_rom->data, emu_rom->length))
             break;
@@ -268,7 +270,7 @@ int main() {
         printf("Loaded ROM \"%s\": %d bytes, mode %d\n", emu_rom->title, emu->rom_size, emu->mode);
 #endif
         // run
-        emu_loop(emu, emu_rom);
+        emu_loop(emu, emu_rom->tickrate);
         octemu_clear_rom(emu);
         sh1106_clear(display);
     }
