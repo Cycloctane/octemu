@@ -13,11 +13,11 @@
 
 #include "core.h"
 
-#ifndef OCTEMU_FREQ_CHIP8
-#define OCTEMU_FREQ_CHIP8 900
+#ifndef OCTEMU_TICKRATE_CHIP8
+#define OCTEMU_TICKRATE_CHIP8 15
 #endif
-#ifndef OCTEMU_FREQ_SCHIP
-#define OCTEMU_FREQ_SCHIP 9000
+#ifndef OCTEMU_TICKRATE_SCHIP
+#define OCTEMU_TICKRATE_SCHIP 200
 #endif
 #ifndef OCTEMU_FOREGROUND_RGB
 #define OCTEMU_FOREGROUND_RGB 0x2AA198
@@ -65,9 +65,8 @@ static uint8_t gfx_buffer[OCTEMU_GFX_HEIGHT][OCTEMU_GFX_WIDTH / 8];
 
 static bool screenshot = false; // not shared
 
-static int eval_loop(void *arg) {
+static int eval_loop(void *tickrate) {
     // assert(emu_core);
-    const int cycles = *(int *)arg / 60; // cycles per frame
     srand((unsigned int)time(NULL));
     for (uint8_t s = PAUSED; s; s = load(status)) {
         if (s == PAUSED || s == HALTED) {
@@ -85,7 +84,7 @@ static int eval_loop(void *arg) {
 
         int err = 0;
         const uint16_t current_keypad = atomic_load(&keypad);
-        for (int i = 0; i < cycles; i++) {
+        for (int i = 0; i < *(int *)tickrate; i++) {
             err = octemu_eval(emu_core, current_keypad);
             if (err)
                 break;
@@ -132,20 +131,20 @@ static int printscreen() {
 static void print_usage(const char *argv0) {
     printf("Usage: %s [option...] <rom_file>\n\nOPTIONS\n", argv0);
     puts("-m chip8|schip|octo\tmode (default octo)");
-    printf("-f <uint>\t\tfrequency/Hz (default %dHz in chip8 mode, %dHz in schip/octo mode)\n\n",
-           OCTEMU_FREQ_CHIP8, OCTEMU_FREQ_SCHIP);
+    printf("-t <uint>\t\ttickrate (default %d in chip8 mode, %d in schip/octo mode)\n\n",
+           OCTEMU_TICKRATE_CHIP8, OCTEMU_TICKRATE_SCHIP);
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     int opt;
-    static int freq = 0;
+    static int tickrate = 0;
     OctEmuMode mode = OCTEMU_MODE_OCTO;
-    while ((opt = getopt(argc, argv, "f:m:?h")) != -1) {
+    while ((opt = getopt(argc, argv, "t:m:?h")) != -1) {
         switch (opt) {
-        case 'f':
-            freq = atoi(optarg);
-            if (freq < 60 || freq > 60000) { // 1 - 1000 cycles per frame
-                fputs("Invalid frequency\n", stderr);
+        case 't':
+            tickrate = atoi(optarg);
+            if (tickrate < 1 || tickrate > 1000) { // 1 - 1000 cycles per frame
+                fputs("Invalid tickrate\n", stderr);
                 print_usage(argv[0]);
                 return SDL_APP_FAILURE;
             }
@@ -176,8 +175,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
         print_usage(argv[0]);
         return SDL_APP_FAILURE;
     }
-    if (!freq)
-        freq = (mode == OCTEMU_MODE_CHIP8) ? OCTEMU_FREQ_CHIP8 : OCTEMU_FREQ_SCHIP;
+    if (!tickrate)
+        tickrate = (mode == OCTEMU_MODE_CHIP8) ? OCTEMU_TICKRATE_CHIP8 : OCTEMU_TICKRATE_SCHIP;
     emu_core = octemu_new(mode);
     if (!emu_core || octemu_load_rom_file(emu_core, argv[optind]))
         return SDL_APP_FAILURE;
@@ -209,7 +208,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     gfx_lock = SDL_CreateMutex();
     if (!gfx_lock)
         goto err;
-    eval_thread = SDL_CreateThread(eval_loop, "eval_loop", &freq);
+    eval_thread = SDL_CreateThread(eval_loop, "eval_loop", &tickrate);
     if (!eval_thread)
         goto err;
 

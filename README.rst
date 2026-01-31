@@ -32,9 +32,9 @@ Start the emulator with a ROM file::
 
     ./octemu ./rom.ch8
 
-Adjust execution frequency with the ``-f`` option::
+Adjust tickrate (instructions per frame) with the ``-t`` option::
 
-    ./octemu -f 500 ./rom.ch8
+    ./octemu -t 20 ./rom.ch8
 
 Modes
 -----
