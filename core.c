@@ -61,11 +61,10 @@ static const uint8_t sprites_hr[160] = { // Octo's 0-F big fonts
 };
 
 OctEmu *octemu_new(OctEmuMode mode) {
-    OctEmu *emu = malloc(sizeof(OctEmu));
+    OctEmu *emu = calloc(1, sizeof(OctEmu));
     if (!emu)
         fputs("Failed to create OctEmu\n", stderr);
     else {
-        memset(emu, 0, sizeof(OctEmu));
         memcpy(emu->mem, sprites, sizeof(sprites));
         memcpy(emu->mem + sizeof(sprites), sprites_hr, sizeof(sprites_hr));
         emu->mode = mode;
@@ -80,6 +79,11 @@ void octemu_reset(OctEmu *emu) {
     emu->pc = 0x200;
     memset(emu->v, 0, sizeof(emu->v));
     memset(emu->stack, 0, sizeof(emu->stack));
+
+    memcpy(emu->mem, sprites, sizeof(sprites));
+    memcpy(emu->mem + sizeof(sprites), sprites_hr, sizeof(sprites_hr));
+    memset(emu->mem + sizeof(sprites) + sizeof(sprites_hr),
+           0, 0x200 - sizeof(sprites) - sizeof(sprites_hr));
     if (emu->rom) {
         memcpy(emu->mem + 0x200, emu->rom, emu->rom_size);
         memset(emu->mem + 0x200 + emu->rom_size, 0, OCTEMU_MEM_SIZE - 0x200 - emu->rom_size);
@@ -581,7 +585,7 @@ int octemu_eval(OctEmu *emu, const uint16_t keypad) {
             emu->i = sizeof(sprites) + (emu->v[ins_x] & 0xF) * 10;
             break;
         case 0x33: // mov [I]..[I+2], bcd(vx)
-            if (emu->i > OCTEMU_MEM_SIZE - 3 || emu->i < 0x200)
+            if (emu->i > OCTEMU_MEM_SIZE - 3)
                 goto err_i_memory;
             uint8_t remain = emu->v[ins_x];
             emu->mem[emu->i] = remain / 100;
@@ -591,7 +595,7 @@ int octemu_eval(OctEmu *emu, const uint16_t keypad) {
             emu->mem[emu->i + 2] = remain;
             break;
         case 0x55: // mov [I], v0..vx
-            if (emu->i >= OCTEMU_MEM_SIZE - ins_x || emu->i < 0x200)
+            if (emu->i >= OCTEMU_MEM_SIZE - ins_x)
                 goto err_i_memory;
             memcpy(emu->mem + emu->i, emu->v, (ins_x + 1) * sizeof(uint8_t));
             if (!schip_mode)
