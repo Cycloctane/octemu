@@ -20,11 +20,15 @@ Requirements:
 * Raspberry Pi Pico SDK and toolchain (arm-none-eabi compiler and libc)
 * python3, jinja2, pyyaml (for parsing config and embedding ROM files)
 
-Config ROMs in games.yml and pass it to ``-DOCTEMU_PICO_ROM`` option::
+To add custom ROM files, config them in ``games.yml`` file following the existing format
+and pass it to ``OCTEMU_PICO_ROM`` option::
 
     git submodule update --init
     cmake -B build -DOCTEMU_PICO_ROM=./games.yml -DPICO_BOARD=pico
     cmake --build build
+
+If this option is not set, octemu pico will use all compatible ROMs from `chip8Archive
+<https://github.com/JohnEarnest/chip8Archive>`__.
 
 Wiring
 ======

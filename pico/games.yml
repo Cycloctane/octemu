@@ -2,13 +2,19 @@
 #   title: Tetris
 #   mode: chip8
 #   tickrate: 15
-#   file: roms/tetris.ch8
+#   file: ../roms/tetris.ch8
 
 # pong:
 #   title: Pong
 #   mode: chip8
-#   tickrate: 15
-#   file: roms/pong.ch8
+#   tickrate: 10
+#   file: ../roms/pong.ch8
+
+# spaceinvaders:
+#   title: Space Invaders
+#   mode: schip
+#   tickrate: 20
+#   file: ../roms/SpaceInvaders.ch8
 
 snake:
   title: Snake
@@ -17,7 +23,7 @@ snake:
   file: ../chip8Archive/roms/snake.ch8
 
 octogon:
-  title: Octogon
+  title: Super Octogon
   mode: octo
   tickrate: 150
   file: ../chip8Archive/roms/octogon.ch8
@@ -33,41 +39,5 @@ supersquare:
   mode: octo
   tickrate: 800
   file: ../chip8Archive/roms/supersquare.ch8
-
-octovore:
-  title: Octovore
-  mode: octo
-  tickrate: 120
-  file: ../chip8Archive/roms/octovore.ch8
-
-octopeg:
-  title: Octopeg
-  mode: octo
-  tickrate: 200
-  file: ../chip8Archive/roms/octopeg.ch8
-
-eaty:
-  title: Eaty The Alien
-  mode: octo
-  tickrate: 200
-  file: ../chip8Archive/roms/eaty.ch8
-
-turnover77:
-  title: Turnover '77
-  mode: octo
-  tickrate: 200
-  file: ../chip8Archive/roms/turnover77.ch8
-
-knight:
-  title: Knight
-  mode: octo
-  tickrate: 200
-  file: ../chip8Archive/roms/knight.ch8
-
-binding:
-  title: The Binding
-  mode: octo
-  tickrate: 1000
-  file: ../chip8Archive/roms/binding.ch8
 
 # more...

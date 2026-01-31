@@ -14,12 +14,20 @@ pico_set_program_name(octemu-pico "octemu pico")
 pico_set_program_description(octemu-pico "Octane's CHIP-8/SUPER-CHIP Emulator on Raspberry Pi Pico")  
 pico_set_program_url(octemu-pico "https://github.com/Cycloctane/octemu/pico/")
 
-set(OCTEMU_PICO_ROM "games.yml" CACHE PATH "Path to CHIP-8 ROM configure json file")
+execute_process(
+    COMMAND git describe --always
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT_VARIABLE OCTEMU_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+pico_set_program_version(octemu-pico ${OCTEMU_VERSION})
+
+set(OCTEMU_PICO_ROM "" CACHE PATH "Path to CHIP-8 ROM configure json file")
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/_rom.c
-    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/render_romc.py ${OCTEMU_PICO_ROM} ${CMAKE_CURRENT_SOURCE_DIR}/_rom.c
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/render_romc.py ${CMAKE_CURRENT_SOURCE_DIR}/_rom.c ${OCTEMU_PICO_ROM}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    COMMENT "Embedding ROM Files in ${OCTEMU_PICO_ROM}..."
+    COMMENT "Generating _rom.c..."
     VERBATIM)
 
 set(OCTEMU_PICO_ROTATE_SCREEN OFF CACHE BOOL "Flip the screen (upside down)")

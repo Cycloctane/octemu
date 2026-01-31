@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import json
 import jinja2
 
 def bin2carray(path: str) -> str:
@@ -10,31 +9,49 @@ def bin2carray(path: str) -> str:
     carray = ",\n\t".join(lines)
     return carray
 
+_escape = lambda s: s.translate(str.maketrans({'"': '', '\\': ''}))
+
+def load_yml(file: str) -> list:
+    import yaml
+    with open(file, "r") as f:
+        return [
+            {
+                "title": _escape(rom["title"]),
+                "mode": rom.get("mode", "octo"),
+                "tickrate": int(rom.get("tickrate", 100)),
+                "data": bin2carray(rom["file"]),
+            } for rom in yaml.safe_load(f).values()
+        ]
+
+def load_chip8achive() -> list:
+    import json
+    with open("../chip8Archive/programs.json", "r") as f:
+        roms_json = json.load(f)
+    roms = []
+    for name, info in roms_json.items():
+        if info.get("platform") not in ("chip8", "schip"):
+            continue
+        if info["options"].get("logicQuirks"):
+            mode = "chip8"
+        elif info["options"].get("jumpQuirks"):
+            mode = "schip"
+        else:
+            mode = "octo"
+        roms.append({
+            "title": _escape(info["title"]), "mode": mode,
+            "tickrate": int(info["options"]["tickrate"]),
+            "data": bin2carray(f"../chip8Archive/roms/{name}.ch8"),
+        })
+    return roms
+
 if __name__ == "__main__":
     import sys
 
     with open("rom.c.jinja", "r") as f:
         tmpl = jinja2.Environment(autoescape=False).from_string(f.read())
 
-    input_file = sys.argv[1]
-    with open(input_file, "r") as f:
-        if input_file.endswith(".yaml") or input_file.endswith(".yml"):
-            import yaml
-            rom_config = yaml.safe_load(f)
-        else:
-            import json
-            rom_config = json.load(f)
+    roms = load_yml(sys.argv[2]) if len(sys.argv) > 2 else load_chip8achive()
+    assert len(roms) > 0, "No ROMs"
 
-    rom_c = tmpl.render(
-        roms=[
-            {
-                "title": rom["title"].translate(str.maketrans({'"': '_', '\\': ''})),
-                "mode": rom.get("mode", "octo"),
-                "tickrate": int(rom.get("tickrate", 100)),
-                "data": bin2carray(rom["file"]),
-            } for rom in rom_config.values()
-        ]
-    )
-
-    with open(sys.argv[2].removesuffix(".c") + ".c", "w") as f:
-        f.write(rom_c)
+    with open(sys.argv[1].removesuffix(".c") + ".c", "w") as f:
+        f.write(tmpl.render(roms=roms))
