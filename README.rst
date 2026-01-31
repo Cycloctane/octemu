@@ -2,15 +2,20 @@
 octemu
 ======
 
-Octane's CHIP-8 Emulator: A safe and efficient CHIP-8/SUPER-CHIP emulator (interpreter)
-written in C and SDL3.
+Octane's CHIP-8/SUPER-CHIP-8 Emulator: A safe, compatible and efficient cross-platform
+CHIP-8/SUPER-CHIP emulator (interpreter) written in C. Runs on both computers (with SDL3)
+and microcontrollers (Raspberry Pi Pico).
+
+.. note::
+
+    For Raspberry Pi Pico, see `README for octemu pico <pico/README.rst>`__
 
 Build
 =====
 
 Requirements: CMake, SDL3 (libsdl3-dev)::
 
-    cmake -B build -DCMAKE_BUILD_TYPE=Release
+    cmake -B build
     cmake --build build
 
 Using Vendored SDL3 Library
@@ -22,7 +27,7 @@ Clone the SDL repository::
 
 Set ``OCTEMU_SDL_PATH`` option in cmake::
 
-    cmake -B build -DCMAKE_BUILD_TYPE=Release -DOCTEMU_SDL_PATH=./vendor/SDL/
+    cmake -B build -DOCTEMU_SDL_PATH=vendor/SDL/
     cmake --build build
 
 Usage
@@ -79,20 +84,12 @@ Space Invaders (schip mode):
 .. image:: img/spaceinvaders.png
     :alt: octemu running spaceinvaders.ch8 in schip mode
 
-`Horsey Jump <https://johnearnest.github.io/chip8Archive/play.html?p=horseyJump>`__
-(octo mode):
+`Horsey Jump <https://johnearnest.github.io/chip8Archive/play.html?p=horseyJump>`__ (octo mode):
 
 .. image:: img/horseyjump.png
     :alt: octemu running horseyJump.ch8 in octo mode
 
-`Knight <https://johnearnest.github.io/chip8Archive/play.html?p=knight>`__
-(octo mode):
+`Knight <https://johnearnest.github.io/chip8Archive/play.html?p=knight>`__ (octo mode):
 
 .. image:: img/knight.png
     :alt: octemu running knight.ch8 in octo mode
-
-`Black Rainbow <https://johnearnest.github.io/chip8Archive/play.html?p=blackrainbow>`__
-(octo mode):
-
-.. image:: img/blackrainbow.png
-    :alt: octemu running blackrainbow.ch8 in octo mode

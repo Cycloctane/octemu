@@ -2,14 +2,14 @@
 octemu pico
 ===========
 
-Octane's CHIP-8/SUPER-CHIP Emulator for Raspberry Pi Pico. Built with octemu core
-and RPi Pico SDK.
+Octane's CHIP-8/SUPER-CHIP Emulator for Raspberry Pi Pico. Built with octemu core and
+RPi Pico SDK.
 
 Usage
 =====
 
-ROMs are embedded in the firmware and selectable in the menu.
-(Use 1,2,3 on keypad to switch and choose ROMs).
+ROMs are embedded into the firmware and selectable in the menu. (Use 1,2,3 on keypad to
+switch and choose ROM).
 
 Build
 =====
