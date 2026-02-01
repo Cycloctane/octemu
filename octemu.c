@@ -31,6 +31,9 @@
 #ifndef OCTEMU_WINDOW_HEIGHT
 #define OCTEMU_WINDOW_HEIGHT 320
 #endif
+#ifndef OCTEMU_VERSION
+#define OCTEMU_VERSION "dev"
+#endif
 
 #define EXITING 0
 #define RUNNING 1
@@ -131,15 +134,16 @@ static int printscreen() {
 static void print_usage(const char *argv0) {
     printf("Usage: %s [option...] <rom_file>\n\nOPTIONS\n", argv0);
     puts("-m chip8|schip|octo\tmode (default octo)");
-    printf("-t <uint>\t\ttickrate (default %d in chip8 mode, %d in schip/octo mode)\n\n",
+    printf("-t <uint>\t\ttickrate (default %d in chip8 mode, %d in schip/octo mode)\n",
            OCTEMU_TICKRATE_CHIP8, OCTEMU_TICKRATE_SCHIP);
+    puts("-v\t\t\tprint version and exit\n");
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     int opt;
     static int tickrate = 0;
     OctEmuMode mode = OCTEMU_MODE_OCTO;
-    while ((opt = getopt(argc, argv, "t:m:?h")) != -1) {
+    while ((opt = getopt(argc, argv, "t:m:v?h")) != -1) {
         switch (opt) {
         case 't':
             tickrate = atoi(optarg);
@@ -162,6 +166,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
                 return SDL_APP_FAILURE;
             }
             break;
+        case 'v':
+            printf("octemu %s\n", OCTEMU_VERSION);
+            return SDL_APP_SUCCESS;
         case '?':
         case 'h':
             print_usage(argv[0]);

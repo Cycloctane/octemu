@@ -26,6 +26,14 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(octemu PRIVATE OCTEMU_DEBUG)
 endif()
 
+execute_process(
+    COMMAND git describe --always --tags
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT_VARIABLE OCTEMU_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+target_compile_definitions(octemu PRIVATE OCTEMU_VERSION="${OCTEMU_VERSION}")
+
 if(OCTEMU_SDL_SHARED)
     target_link_libraries(octemu PRIVATE SDL3::SDL3-shared)
 else()
