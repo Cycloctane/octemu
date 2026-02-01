@@ -1,0 +1,73 @@
+name: Build
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+    - uses: actions/setup-python@v6
+      with:
+        python-version: '>=3.13'
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update && sudo apt-get install -y mingw-w64 gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
+        python -m pip install jinja2
+    - name: Setup SDL for Linux
+      uses: libsdl-org/setup-sdl@main
+      id: sdl_linux
+      with:
+        install-linux-dependencies: true
+        version: 3-latest
+        build-type: Release
+        cmake-arguments: '-DSDL_STATIC=ON'
+    - name: Setup SDL for Windows
+      uses: libsdl-org/setup-sdl@main
+      id: sdl_win
+      with:
+        version: 3-latest
+        build-type: Release
+        cmake-arguments: '-DSDL_STATIC=ON'
+        cmake-toolchain-file: tc-mingw.cmake
+    - name: Build octemu (linux)
+      run: |
+        cmake -B build-linux -DCMAKE_BUILD_TYPE=Release\
+          -DCMAKE_PREFIX_PATH=${{ steps.sdl_linux.outputs.prefix }} -DSDL3_ROOT=${{ steps.sdl_linux.outputs.prefix }}
+        cmake --build build-linux
+    - name: Build octemu (windows)
+      run: |
+        cmake -B build-windows -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=tc-mingw.cmake\
+          -DCMAKE_PREFIX_PATH=${{ steps.sdl_win.outputs.prefix }} -DSDL3_ROOT=${{ steps.sdl_win.outputs.prefix }}
+        cmake --build build-windows
+    - name: Build octemu (pico)
+      run: |
+        cmake -S pico -B build-pico -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico -DOCTEMU_PICO_ROTATE_SCREEN=ON
+        cmake --build build-pico
+    - name: Build octemu (pico2)
+      run: |
+        cmake -S pico -B build-pico2 -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico2 -DOCTEMU_PICO_ROTATE_SCREEN=ON
+        cmake --build build-pico2
+    - name: Prepare Artifacts
+      run: |
+        mkdir -p build
+        cp build-linux/octemu build/octemu_${{ github.ref_name }}
+        cp build-windows/octemu.exe build/octemu_${{ github.ref_name }}.exe
+        cp build-pico/octemu-pico.uf2 build/octemu-pico_pico_${{ github.ref_name }}.uf2
+        cp build-pico2/octemu-pico.uf2 build/octemu-pico_pico2_${{ github.ref_name }}.uf2
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v6
+      with:
+        path: build/*
+    - name: Create Release
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      uses: ncipollo/release-action@v1
+      with:
+        name: ${{ github.ref_name }}
+        draft: true
+        artifacts: build/*
