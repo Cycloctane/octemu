@@ -30,9 +30,14 @@ add_custom_command(
     COMMENT "Generating _rom.c..."
     VERBATIM)
 
-set(OCTEMU_PICO_ROTATE_SCREEN OFF CACHE BOOL "Flip the screen (upside down)")
+option(OCTEMU_PICO_ROTATE_SCREEN "Flip the screen (upside down)" OFF)
 if(OCTEMU_PICO_ROTATE_SCREEN)
     target_compile_definitions(octemu-pico PRIVATE SH1106_ROTATE_SCREEN)
+endif()
+
+option(OCTEMU_PICO_ACTIVE_BUZZER "Use active buzzer" OFF)
+if(OCTEMU_PICO_ACTIVE_BUZZER)
+    target_compile_definitions(octemu-pico PRIVATE OCTEMU_PICO_ACTIVE_BUZZER)
 endif()
 
 target_link_libraries(octemu-pico PRIVATE pico_stdlib pico_rand hardware_spi hardware_pwm)

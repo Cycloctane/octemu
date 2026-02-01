@@ -31,11 +31,19 @@ extern const uint emu_roms_count;
 static sh1106 *display = NULL;
 
 static inline void start_sound() {
+#ifdef OCTEMU_PICO_ACTIVE_BUZZER
+    gpio_put(20, true);
+#else
     pwm_set_enabled(pwm_gpio_to_slice_num(20), true);
+#endif
 }
 
 static inline void stop_sound() {
+#ifdef OCTEMU_PICO_ACTIVE_BUZZER
+    gpio_put(20, false);
+#else
     pwm_set_enabled(pwm_gpio_to_slice_num(20), false);
+#endif
 }
 
 static inline void gpio_init_pulldown(const uint gpio) {
@@ -87,11 +95,11 @@ static void convert_vram(const OctEmu *emu, sh1106 *display) {
 }
 
 static inline OctEmuMode str2mode(const char *mode_str) {
-    if (strcmp(mode_str, "chip8") == 0)
+    if (!strcmp(mode_str, "chip8"))
         return OCTEMU_MODE_CHIP8;
-    else if (strcmp(mode_str, "schip") == 0)
+    else if (!strcmp(mode_str, "schip"))
         return OCTEMU_MODE_SCHIP;
-    else if (strcmp(mode_str, "octo") == 0)
+    else if (!strcmp(mode_str, "octo"))
         return OCTEMU_MODE_OCTO;
     else
         return OCTEMU_MODE_OCTO; // default
@@ -243,12 +251,17 @@ int main() {
     gpio_init_pulldown(OCTEMU_PICO_RESET_GPIO);
     gpio_init_pulldown(OCTEMU_PICO_QUIT_GPIO);
 
+#ifdef OCTEMU_PICO_ACTIVE_BUZZER
+    gpio_init(20);
+    gpio_set_dir(20, GPIO_OUT);
+#else
     // pwm buzzer 500Hz
     gpio_set_function(20, GPIO_FUNC_PWM);
     uint slice_num = pwm_gpio_to_slice_num(20);
     pwm_set_clkdiv(slice_num, SYS_CLK_KHZ / 1250);
     pwm_set_wrap(slice_num, 2500);
     pwm_set_chan_level(slice_num, pwm_gpio_to_channel(20), 1250);
+#endif
 
     // emulator core
     OctEmu *emu = octemu_new(OCTEMU_MODE_OCTO);

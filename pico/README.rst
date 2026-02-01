@@ -67,6 +67,8 @@ Sound
 
 * Passive buzzer: GP20
 
+Set ``-DOCTEMU_PICO_ACTIVE_BUZZER`` cmake option if using an active buzzer.
+
 Serial
 ------
 
