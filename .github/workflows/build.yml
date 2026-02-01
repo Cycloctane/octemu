@@ -19,31 +19,31 @@ jobs:
       run: |
         sudo apt-get update && sudo apt-get install -y mingw-w64 gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
         python -m pip install jinja2
-    - name: Setup SDL for Linux
+    - name: Setup SDL (linux)
       uses: libsdl-org/setup-sdl@main
       id: sdl_linux
       with:
         install-linux-dependencies: true
         version: 3-latest
         build-type: Release
-        cmake-arguments: '-DSDL_STATIC=ON'
-    - name: Setup SDL for Windows
+        cmake-arguments: -DSDL_STATIC=ON -DSDL_SHARED=OFF -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=${{ github.workspace }}/sdl-settings.cmake
+    - name: Setup SDL (windows)
       uses: libsdl-org/setup-sdl@main
       id: sdl_win
       with:
         version: 3-latest
         build-type: Release
-        cmake-arguments: '-DSDL_STATIC=ON'
+        cmake-arguments: -DSDL_STATIC=ON -DSDL_SHARED=OFF -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=${{ github.workspace }}/sdl-settings.cmake
         cmake-toolchain-file: tc-mingw.cmake
     - name: Build octemu (linux)
-      run: |
-        cmake -B build-linux -DCMAKE_BUILD_TYPE=Release\
-          -DCMAKE_PREFIX_PATH=${{ steps.sdl_linux.outputs.prefix }} -DSDL3_ROOT=${{ steps.sdl_linux.outputs.prefix }}
-        cmake --build build-linux
+      env:
+        SDL3_ROOT: ${{ steps.sdl_linux.outputs.prefix }}
+      run: cmake -B build-linux -DCMAKE_BUILD_TYPE=Release && cmake --build build-linux
     - name: Build octemu (windows)
+      env:
+        SDL3_ROOT: ${{ steps.sdl_win.outputs.prefix }}
       run: |
-        cmake -B build-windows -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=tc-mingw.cmake\
-          -DCMAKE_PREFIX_PATH=${{ steps.sdl_win.outputs.prefix }} -DSDL3_ROOT=${{ steps.sdl_win.outputs.prefix }}
+        cmake -B build-windows -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=tc-mingw.cmake
         cmake --build build-windows
     - name: Build octemu (pico)
       run: |
