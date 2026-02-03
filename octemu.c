@@ -89,7 +89,7 @@ static int eval_loop(void *tickrate) {
         const uint16_t current_keypad = atomic_load(&keypad);
         for (int i = 0; i < *(int *)tickrate; i++) {
             err = octemu_eval(emu_core, current_keypad);
-            if (err)
+            if (err || (emu_core->mode == OCTEMU_MODE_CHIP8 && emu_core->gfx_dirty))
                 break;
         }
 

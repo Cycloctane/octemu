@@ -175,7 +175,7 @@ static void emu_loop(OctEmu *emu, const unsigned int tickrate) {
         const uint16_t keypad = read_keypad();
         for (uint i = 0; i < tickrate; i++) {
             err = octemu_eval(emu, keypad);
-            if (err)
+            if (err || (emu->mode == OCTEMU_MODE_CHIP8 && emu->gfx_dirty))
                 break;
         }
 
