@@ -12,7 +12,7 @@ add_executable(octemu-pico ../core.c sh1106.c octemu_pico.c _rom.c)
 
 pico_set_program_name(octemu-pico "octemu pico")
 pico_set_program_description(octemu-pico "Octane's CHIP-8/SUPER-CHIP Emulator on Raspberry Pi Pico")  
-pico_set_program_url(octemu-pico "https://github.com/Cycloctane/octemu/pico/")
+pico_set_program_url(octemu-pico "https://github.com/Cycloctane/octemu/tree/main/pico")
 
 execute_process(
     COMMAND git describe --always --tags
