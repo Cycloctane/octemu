@@ -6,6 +6,7 @@
 #include "hardware/pwm.h"
 #include "pico/stdlib.h"
 #include "pico/rand.h"
+#include "pico/time.h"
 
 #include "sh1106.h"
 #include "fonts.h"
@@ -166,6 +167,7 @@ static void emu_loop(OctEmu *emu, const unsigned int tickrate) {
             sound = false;
         }
 
+        const uint64_t start = to_us_since_boot(get_absolute_time());
         if (s == PAUSED || s == HALTED) {
             sleep_ms(100);
             continue;
@@ -201,11 +203,13 @@ static void emu_loop(OctEmu *emu, const unsigned int tickrate) {
 
         if (emu->gfx_dirty) {
             convert_vram(emu, display);
-            const int pages_written = sh1106_write(display);
-            sleep_us(16660 - pages_written * 132); // -SPI write time
+            sh1106_write(display);
             emu->gfx_dirty = false;
-        } else
-            sleep_us(16660);
+        }
+
+        const uint64_t now = to_us_since_boot(get_absolute_time());
+        if (now - start < 16660)
+            sleep_us(start + 16660 - now);
         octemu_tick(emu);
     }
     if (sound)
