@@ -167,7 +167,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
             }
             break;
         case 'v':
-            printf("octemu %s\n", OCTEMU_VERSION);
+            puts("octemu " OCTEMU_VERSION);
             return SDL_APP_SUCCESS;
         case '?':
         case 'h':
@@ -188,9 +188,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     if (!emu_core || octemu_load_rom_file(emu_core, argv[optind]))
         return SDL_APP_FAILURE;
 
-    SDL_SetAppMetadata("octemu", NULL, NULL);
+    SDL_SetAppMetadata("octemu", OCTEMU_VERSION, NULL);
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) ||
-        !SDL_CreateWindowAndRenderer("octemu", OCTEMU_WINDOW_WIDTH, OCTEMU_WINDOW_HEIGHT,
+        !SDL_CreateWindowAndRenderer("octemu " OCTEMU_VERSION,
+                                     OCTEMU_WINDOW_WIDTH, OCTEMU_WINDOW_HEIGHT,
                                      SDL_WINDOW_RESIZABLE, &window, &renderer) ||
         !SDL_SetRenderLogicalPresentation(renderer, OCTEMU_GFX_WIDTH, OCTEMU_GFX_HEIGHT,
                                           SDL_LOGICAL_PRESENTATION_STRETCH)) {
@@ -286,16 +287,16 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
             const uint8_t current_status = load(status);
             if (current_status == RUNNING) {
                 store(status, PAUSED);
-                SDL_SetWindowTitle(window, "octemu (paused)");
+                SDL_SetWindowTitle(window, "octemu " OCTEMU_VERSION " (paused)");
             } else if (current_status == PAUSED) {
                 store(status, RUNNING);
-                SDL_SetWindowTitle(window, "octemu");
+                SDL_SetWindowTitle(window, "octemu " OCTEMU_VERSION);
             }
             break;
         }
         case SDL_SCANCODE_F5: // reset
             if (load(status) == PAUSED)
-                SDL_SetWindowTitle(window, "octemu");
+                SDL_SetWindowTitle(window, "octemu " OCTEMU_VERSION);
             store(status, RESET);
             break;
         case SDL_SCANCODE_F12: // screenshot
