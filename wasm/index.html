@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>octemu (loading...)</title>
+  <style>
+    body {
+      padding: 18px;
+      font-family: Consolas, 'Courier New', Courier, monospace;
+      font-size: 12px;
+    }
+
+    #main {
+      width: 640px;
+      margin: 0 auto;
+      border: 1px solid black;
+      background: aliceblue;
+    }
+
+    .section {
+      padding: 12px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 60px 250px auto;
+      align-items: center;
+      column-gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    select, input, button {
+      height: 24px;
+    }
+
+    select, input {
+      accent-color: steelblue;
+      background: white;
+      border: 1px solid steelblue;
+      border-radius: 0;
+    }
+
+    button {
+      background: steelblue;
+      border: 0;
+      cursor: pointer;
+      color: white;
+    }
+
+    #canvas {
+      background: black;
+      image-rendering: pixelated;
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+
+    small {
+      color: gray;
+    }
+
+    pre {
+      font-family: Consolas, 'Courier New', Courier, monospace;
+    }
+
+    summary {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="main">
+    <div class="section">
+      <h1>octemu</h1>
+      <p>Octane's CHIP-8/SUPER-CHIP emulator</p>
+      <div id="config">
+        <div class="row">
+          <label for="mode">Mode:</label>
+          <select id="mode" style="width: 90px;" disabled>
+            <option value="0">CHIP-8</option>
+            <option value="1">SCHIP</option>
+            <option value="2" selected>OCTO</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="tickrate">Tickrate:</label>
+          <input id="tickrate" type="range" min="4" max="1000" step="2" value="200" disabled>
+          <span id="tickrate-value">200</span>
+        </div>
+        <div class="row">
+          <label for="upload">ROM:</label>
+          <input id="upload" type="file" accept=".ch8">
+          <button id="play" style="width: 60px;" type="button" aria-label="Play ROM" title="Play ROM" disabled>
+            Start
+          </button>
+        </div>
+      </div>
+    </div>
+    <canvas id="canvas" width="640" height="320"></canvas>
+    <div class="section">
+      <details id="help">
+        <summary><u>help</u></summary><p></p>
+        <p>Hint: Download CHIP-8/SUPER-CHIP ROMS from <a href="https://github.com/JohnEarnest/chip8Archive">CHIP-8 Archive</a>.</p>
+        <p>Key mapping:</p>
+        <pre>
+        +-------+-------+-------+-------+
+        | 1 (1) | 2 (2) | 3 (3) | C (4) |
+        +-------+-------+-------+-------+
+        | 4 (Q) | 5 (W) | 6 (E) | D (R) |
+        +-------+-------+-------+-------+
+        | 7 (A) | 8 (S) | 9 (D) | E (F) |
+        +-------+-------+-------+-------+
+        | A (Z) | 0 (X) | B (C) | F (V) |
+        +-------+-------+-------+-------+
+        Space: Pause/Resume; F5: Reload Current ROM.</pre>
+        <p>Have fun!</p>
+      </details>
+      <footer>
+        <small id="version">Version: unknown</small>
+        <small>Copyright (c) 2026 Cycloctane | <a href="https://github.com/Cycloctane/octemu">GitHub</a></small>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+  (() => {
+    const play = document.getElementById("play");
+    const upload = document.getElementById("upload");
+    const mode = document.getElementById("mode");
+    const tickrate = document.getElementById("tickrate");
+    const tickrateValue = document.getElementById("tickrate-value");
+
+    const runner = {
+      ready: false,
+      setMode: null,
+      setTickrate: null,
+      run: null
+    };
+
+    let rom = null;
+
+    upload.addEventListener("change", async () => {
+      const file = upload.files && upload.files[0];
+      if (!file) {
+        return;
+      }
+      try {
+        rom = new Uint8Array(await file.arrayBuffer());
+      } catch (e) {
+        alert("Failed to read ROM file");
+        upload.value = "";
+      }
+    });
+
+    play.addEventListener("click", () => {
+      if (!rom || rom.length === 0) {
+        alert("No ROM loaded");
+        return;
+      }
+      if (rom.length > 4096 - 0x200) {
+        alert("Invalid ROM size");
+        rom = null;
+        upload.value = "";
+        return;
+      }
+      if (runner.run(rom, rom.length) !== 0) {
+        alert("Failed to run emulator: unknown error");
+        rom = null;
+        upload.value = "";
+      }
+    });
+
+    mode.addEventListener("change", () => {
+      if (runner.setMode(Number.parseInt(mode.value)) !== 0) {
+        alert("Failed to set mode");
+        runner.setMode(2);
+        mode.value = "2";
+      }
+    });
+
+    tickrate.addEventListener("change", () => {
+      if (runner.setTickrate(Number.parseInt(tickrate.value)) !== 0) {
+        alert("Failed to set tickrate");
+        runner.setTickrate(200);
+        tickrate.value = "200";
+        tickrateValue.textContent = "200";
+      }
+    });
+
+    tickrate.addEventListener("input", () => {
+      tickrateValue.textContent = tickrate.value;
+    });
+
+    tickrate.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      let newValue = Number.parseInt(tickrate.value) + Math.sign(-event.deltaY) * 2;
+      newValue = Math.max(4, Math.min(1000, newValue));
+      tickrate.value = newValue;
+      tickrateValue.textContent = newValue;
+      tickrate.dispatchEvent(new Event("change"));
+    });
+
+    window.Module = {
+      canvas: document.getElementById("canvas"),
+      onRuntimeInitialized() {
+        document.getElementById("version").textContent = `Version: ${Module.cwrap("get_version", "string", [])()}`;
+        runner.setMode = Module.cwrap("set_mode", "number", ["number"]);
+        runner.setTickrate = Module.cwrap("set_tickrate", "number", ["number"]);
+        runner.run = Module.cwrap("run", "number", ["array", "number"]);
+        runner.ready = true;
+        play.disabled = false;
+        mode.disabled = false;
+        tickrate.disabled = false;
+      }
+    };
+  })();
+  </script>
+  <script async src="octemu.js"></script>
+</body>
+</html>

@@ -12,28 +12,7 @@
 #include "SDL3/SDL_main.h"
 
 #include "core.h"
-
-#ifndef OCTEMU_TICKRATE_CHIP8
-#define OCTEMU_TICKRATE_CHIP8 15
-#endif
-#ifndef OCTEMU_TICKRATE_SCHIP
-#define OCTEMU_TICKRATE_SCHIP 200
-#endif
-#ifndef OCTEMU_FOREGROUND_RGB
-#define OCTEMU_FOREGROUND_RGB 0x2AA198
-#endif
-#ifndef OCTEMU_BACKGROUND_RGB
-#define OCTEMU_BACKGROUND_RGB 0x002B36
-#endif
-#ifndef OCTEMU_WINDOW_WIDTH
-#define OCTEMU_WINDOW_WIDTH 640
-#endif
-#ifndef OCTEMU_WINDOW_HEIGHT
-#define OCTEMU_WINDOW_HEIGHT 320
-#endif
-#ifndef OCTEMU_VERSION
-#define OCTEMU_VERSION "dev"
-#endif
+#include "octemu.h"
 
 #define EXITING 0
 #define RUNNING 1
@@ -43,13 +22,6 @@
 
 #define load(var) atomic_load_explicit(&var, memory_order_acquire)
 #define store(var, val) atomic_store_explicit(&var, val, memory_order_release)
-
-static const SDL_Scancode keymapping[16] = {
-    SDL_SCANCODE_1, SDL_SCANCODE_2, SDL_SCANCODE_3, SDL_SCANCODE_4,
-    SDL_SCANCODE_Q, SDL_SCANCODE_W, SDL_SCANCODE_E, SDL_SCANCODE_R,
-    SDL_SCANCODE_A, SDL_SCANCODE_S, SDL_SCANCODE_D, SDL_SCANCODE_F,
-    SDL_SCANCODE_Z, SDL_SCANCODE_X, SDL_SCANCODE_C, SDL_SCANCODE_V
-};
 
 static uint8_t audio_samples[96];
 

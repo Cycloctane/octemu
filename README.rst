@@ -2,9 +2,9 @@
 octemu
 ======
 
-Octane's CHIP-8/SUPER-CHIP-8 Emulator: A safe, compatible and efficient cross-platform
-CHIP-8/SUPER-CHIP emulator (interpreter) written in C. Runs on both computers (with SDL3)
-and microcontrollers (Raspberry Pi Pico).
+Octane's CHIP-8/SUPER-CHIP Emulator: A safe, compatible and efficient cross-platform
+CHIP-8/SUPER-CHIP emulator (interpreter) written in C. Runs on computers (with SDL3),
+browsers (with WebAssembly) and microcontrollers (Raspberry Pi Pico).
 
 .. note::
 
@@ -29,6 +29,15 @@ Set ``OCTEMU_SDL_PATH`` option in cmake::
 
     cmake -B build -DOCTEMU_SDL_PATH=vendor/SDL/
     cmake --build build
+
+WebAssembly Build
+-----------------
+
+Additional requirement: Emscripten::
+
+    emcmake cmake -B build-web -DOCTEMU_SDL_PATH=vendor/SDL/
+    cmake --build build-web
+    emrun build-web/index.html
 
 Usage
 =====
