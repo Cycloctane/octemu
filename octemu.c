@@ -199,9 +199,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     texture = SDL_CreateTexture(
         renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
         OCTEMU_GFX_WIDTH, OCTEMU_GFX_HEIGHT);
-    if (!texture || !SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST))
+    if (!texture ||
+        !SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST) ||
+        !SDL_SetRenderVSync(renderer, 1))
         goto err;
-    SDL_SetRenderVSync(renderer, 1);
 
     const SDL_AudioSpec spec = {.channels = 1, .freq = 1000, .format = SDL_AUDIO_U8};
     audio_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, NULL, NULL);
