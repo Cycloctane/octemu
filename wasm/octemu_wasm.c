@@ -32,7 +32,7 @@ static uint32_t color_fg = OCTEMU_FOREGROUND_RGB, color_bg = OCTEMU_BACKGROUND_R
 
 static uint8_t status = HALTED;
 static uint16_t keypad = 0; // 0: none, 0-15 bit: keypad[0-15]
-
+static bool screenshot = false;
 
 EMSCRIPTEN_KEEPALIVE
 const char *get_version() { return OCTEMU_VERSION; }
@@ -94,13 +94,38 @@ static uint64_t eval_loop(void *_, SDL_TimerID id, uint64_t interval) {
     return INTERVAL_NS;
 }
 
+static int printscreen() {
+    SDL_Surface *surface = SDL_RenderReadPixels(renderer, NULL);
+    if (!surface) {
+        fprintf(stderr, "Failed to take screenshot: %s\n", SDL_GetError());
+        return 1;
+    }
+    if (!SDL_SaveBMP(surface, "octemu.bmp")) {
+        fprintf(stderr, "Failed to save screenshot: %s\n", SDL_GetError());
+        SDL_DestroySurface(surface);
+        return 1;
+    }
+    SDL_DestroySurface(surface);
+    EM_ASM(
+        var a = document.createElement("a");
+        a.download = "octemu.bmp";
+        a.href = URL.createObjectURL(new Blob([FS.readFile("octemu.bmp")], {type: "image/bmp"}));
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+    );
+    return 0;
+}
+
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     emu_core = octemu_new(OCTEMU_MODE_OCTO);
     if (!emu_core)
         return SDL_APP_FAILURE;
 
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) ||
-        !SDL_CreateWindowAndRenderer("octemu",
+        !SDL_CreateWindowAndRenderer("octemu: CHIP-8 Emulator",
                                      OCTEMU_WINDOW_WIDTH, OCTEMU_WINDOW_HEIGHT,
                                      SDL_WINDOW_RESIZABLE, &window, &renderer) ||
         !SDL_SetRenderLogicalPresentation(renderer, OCTEMU_GFX_WIDTH, OCTEMU_GFX_HEIGHT,
@@ -161,6 +186,10 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
         SDL_UnlockTexture(texture);
     }
     SDL_RenderTexture(renderer, texture, NULL, NULL);
+    if (screenshot) {
+        printscreen();
+        screenshot = false;
+    }
     SDL_RenderPresent(renderer);
     return SDL_APP_CONTINUE;
 }
@@ -187,6 +216,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
         case SDL_SCANCODE_F5: // reset
             octemu_reset(emu_core);
             status = RUNNING;
+            break;
+        case SDL_SCANCODE_F12:
+            screenshot = true;
             break;
         default:
             for (int i = 0; i < 16; i++) {
