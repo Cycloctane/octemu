@@ -6,10 +6,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  main:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
     - uses: actions/checkout@v6
       with:
@@ -17,6 +15,7 @@ jobs:
     - uses: actions/setup-python@v6
       with:
         python-version: '>=3.13'
+    - uses: emscripten-core/setup-emsdk@v16
     - name: Install Dependencies
       run: |
         sudo apt-get update && sudo apt-get install -y mingw-w64 gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
@@ -37,6 +36,14 @@ jobs:
         build-type: Release
         cmake-arguments: -DSDL_STATIC=ON -DSDL_SHARED=OFF -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=${{ github.workspace }}/sdl-settings.cmake
         cmake-toolchain-file: tc-mingw.cmake
+    - name: Setup SDL (emscripten)
+      uses: libsdl-org/setup-sdl@main
+      id: sdl_emscripten
+      with:
+        version: 3-latest
+        build-type: Release
+        cmake-arguments: -DSDL_STATIC=ON -DSDL_SHARED=OFF -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=${{ github.workspace }}/sdl-settings.cmake
+        cmake-toolchain-file: ${{ env.EMSDK }}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake
     - name: Build octemu (linux)
       env:
         SDL3_ROOT: ${{ steps.sdl_linux.outputs.prefix }}
@@ -47,6 +54,12 @@ jobs:
       run: |
         cmake -B build-windows -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=tc-mingw.cmake
         cmake --build build-windows
+    - name: Build octemu (emscripten)
+      env:
+        SDL3_ROOT: ${{ steps.sdl_emscripten.outputs.prefix }}
+      run: |
+        emcmake cmake -B build-web -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=BOTH
+        cmake --build build-web
     - name: Build octemu (pico)
       run: |
         cmake -S pico -B build-pico -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico -DOCTEMU_PICO_ROTATE_SCREEN=ON
@@ -57,19 +70,36 @@ jobs:
         cmake --build build-pico2
     - name: Prepare Artifacts
       run: |
-        mkdir -p build
+        mkdir -p build web
         cp build-linux/octemu build/octemu_${{ github.ref_name }}
         cp build-windows/octemu.exe build/octemu_${{ github.ref_name }}.exe
         cp build-pico/octemu-pico.uf2 build/octemu-pico_pico_${{ github.ref_name }}.uf2
         cp build-pico2/octemu-pico.uf2 build/octemu-pico_pico2_${{ github.ref_name }}.uf2
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v6
+        cp build-web/octemu.js build-web/octemu.wasm build-web/index.html web/
+    - uses: actions/upload-artifact@v7
       with:
         path: build/*
-    - name: Create Release
-      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-      uses: ncipollo/release-action@v1
+        name: octemu
+    - uses: actions/upload-pages-artifact@v5
+      with:
+        path: web/
+
+  release:
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    steps:
+    - uses: actions/download-artifact@v8
+      with:
+        name: octemu
+        path: build/
+    - uses: ncipollo/release-action@v1
       with:
         name: ${{ github.ref_name }}
         draft: true
         artifacts: build/*
+    - uses: actions/deploy-pages@v5
