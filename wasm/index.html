@@ -74,7 +74,7 @@
   <div id="main">
     <div class="section">
       <h1>octemu</h1>
-      <p>Octane's CHIP-8/SUPER-CHIP emulator</p>
+      <p>Octane's CHIP-8/SUPER-CHIP emulator (WebAssembly)</p>
       <div id="config">
         <div class="row">
           <label for="mode">Mode:</label>
@@ -92,7 +92,7 @@
         <div class="row">
           <label for="upload">ROM:</label>
           <input id="upload" type="file" accept=".ch8">
-          <button id="play" style="width: 60px;" type="button" aria-label="Play ROM" title="Play ROM" disabled>
+          <button id="play" style="width: 60px;" type="button" disabled hidden>
             Start
           </button>
         </div>
@@ -102,7 +102,7 @@
     <div class="section">
       <details id="help">
         <summary><u>help</u></summary><p></p>
-        <p>Hint: Download CHIP-8/SUPER-CHIP ROMS from <a href="https://github.com/JohnEarnest/chip8Archive">CHIP-8 Archive</a>.</p>
+        <p>Hint: Download CHIP-8/SUPER-CHIP ROMs from <a href="https://github.com/JohnEarnest/chip8Archive">CHIP-8 Archive</a>.</p>
         <p>Key mapping:</p>
         <pre>
         +-------+-------+-------+-------+
@@ -118,8 +118,8 @@
         <p>Have fun!</p>
       </details>
       <footer>
-        <small id="version">Version: unknown</small>
-        <small>Copyright (c) 2026 Cycloctane | <a href="https://github.com/Cycloctane/octemu">GitHub</a></small>
+        <small>version: <span id="version">unknown</span></small>
+        <small>Created by <a href="https://github.com/Cycloctane">Cycloctane</a> | <a href="https://github.com/Cycloctane/octemu">Source</a></small>
       </footer>
     </div>
   </div>
@@ -133,7 +133,6 @@
     const tickrateValue = document.getElementById("tickrate-value");
 
     const runner = {
-      ready: false,
       setMode: null,
       setTickrate: null,
       run: null
@@ -143,29 +142,19 @@
 
     upload.addEventListener("change", async () => {
       const file = upload.files && upload.files[0];
-      if (!file) {
-        return;
-      }
-      try {
+      if (file) {
         rom = new Uint8Array(await file.arrayBuffer());
-      } catch (e) {
-        alert("Failed to read ROM file");
-        upload.value = "";
       }
     });
 
     play.addEventListener("click", () => {
       if (!rom || rom.length === 0) {
         alert("No ROM loaded");
-        return;
-      }
-      if (rom.length > 4096 - 0x200) {
+      } else if (rom.length > 4096 - 0x200) {
         alert("Invalid ROM size");
         rom = null;
         upload.value = "";
-        return;
-      }
-      if (runner.run(rom, rom.length) !== 0) {
+      } else if (runner.run(rom, rom.length) !== 0) {
         alert("Failed to run emulator: unknown error");
         rom = null;
         upload.value = "";
@@ -175,8 +164,7 @@
     mode.addEventListener("change", () => {
       if (runner.setMode(Number.parseInt(mode.value)) !== 0) {
         alert("Failed to set mode");
-        runner.setMode(2);
-        mode.value = "2";
+        mode.value = "2"; // OCTO mode
       }
     });
 
@@ -205,12 +193,12 @@
     window.Module = {
       canvas: document.getElementById("canvas"),
       onRuntimeInitialized() {
-        document.getElementById("version").textContent = `Version: ${Module.cwrap("get_version", "string", [])()}`;
+        document.getElementById("version").textContent = Module.cwrap("get_version", "string", [])();
         runner.setMode = Module.cwrap("set_mode", "number", ["number"]);
         runner.setTickrate = Module.cwrap("set_tickrate", "number", ["number"]);
         runner.run = Module.cwrap("run", "number", ["array", "number"]);
-        runner.ready = true;
         play.disabled = false;
+        play.hidden = false;
         mode.disabled = false;
         tickrate.disabled = false;
       }
