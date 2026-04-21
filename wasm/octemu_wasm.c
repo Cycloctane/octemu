@@ -2,9 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
-#include <unistd.h>
 
 #include <emscripten/emscripten.h>
 
@@ -18,7 +16,6 @@
 #define RUNNING 1
 #define PAUSED 2
 #define HALTED 3
-#define RESET 4
 
 #define INTERVAL_NS 16666666
 
@@ -29,7 +26,6 @@ static SDL_Renderer *renderer = NULL;
 static SDL_Texture *texture = NULL;
 static SDL_AudioStream *audio_stream = NULL;
 static OctEmu *emu_core = NULL;
-static SDL_TimerID timer = 0;
 
 static int tickrate = OCTEMU_TICKRATE_SCHIP;
 static uint32_t color_fg = OCTEMU_FOREGROUND_RGB, color_bg = OCTEMU_BACKGROUND_RGB;
@@ -79,9 +75,6 @@ static uint64_t eval_loop(void *_, SDL_TimerID id, uint64_t interval) {
     // assert(emu_core);
     if (status == PAUSED || status == HALTED) {
         return INTERVAL_NS * 10;
-    } else if (status == RESET) {
-        octemu_reset(emu_core);
-        status = RUNNING;
     }
 
     int err = 0;
@@ -132,8 +125,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     }
 
     srand((unsigned int)time(NULL));
-    timer = SDL_AddTimerNS(INTERVAL_NS * 10, eval_loop, NULL);
-    if (!timer)
+    if (!SDL_AddTimerNS(INTERVAL_NS * 10, eval_loop, NULL))
         goto err;
     return SDL_APP_CONTINUE;
 
@@ -193,7 +185,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
             break;
         }
         case SDL_SCANCODE_F5: // reset
-            status = RESET;
+            octemu_reset(emu_core);
+            status = RUNNING;
             break;
         default:
             for (int i = 0; i < 16; i++) {
