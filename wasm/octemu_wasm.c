@@ -67,6 +67,7 @@ int run(const uint8_t *rom, const size_t size) {
         octemu_clear_rom(emu_core);
     if (octemu_load_rom(emu_core, rom, size))
         return 1;
+    emu_core->gfx_dirty = true;
     status = RUNNING;
     return 0;
 }
