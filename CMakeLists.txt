@@ -23,7 +23,13 @@ endif()
 if(EMSCRIPTEN)
     add_executable(octemu core.c wasm/octemu_wasm.c)
     target_link_options(octemu PRIVATE -sASYNCIFY -sEXPORTED_RUNTIME_METHODS=ccall,cwrap)
-    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/wasm/index.html DESTINATION ${CMAKE_BINARY_DIR}/)
+    add_custom_command(
+        OUTPUT ${CMAKE_BINARY_DIR}/index.html
+        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/wasm/render_index_html.py ${CMAKE_BINARY_DIR}/
+        COMMENT "Generating static files..."
+        VERBATIM)
+    add_custom_target(index_html DEPENDS ${CMAKE_BINARY_DIR}/index.html)
+    add_dependencies(octemu index_html)
 else()
     add_executable(octemu core.c octemu.c)
 endif()

@@ -4,6 +4,12 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Deploy GitHub Pages'
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   build:
@@ -76,6 +82,7 @@ jobs:
         cp build-pico/octemu-pico.uf2 build/octemu-pico_pico_${{ github.ref_name }}.uf2
         cp build-pico2/octemu-pico.uf2 build/octemu-pico_pico2_${{ github.ref_name }}.uf2
         cp build-web/octemu.js build-web/octemu.wasm build-web/index.html web/
+        cp -r build-web/roms web/
     - uses: actions/upload-artifact@v7
       with:
         path: build/*
@@ -86,7 +93,7 @@ jobs:
 
   release:
     needs: build
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || github.event.inputs.deploy == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -94,10 +101,12 @@ jobs:
       id-token: write
     steps:
     - uses: actions/download-artifact@v8
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
       with:
         name: octemu
         path: build/
     - uses: ncipollo/release-action@v1
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
       with:
         name: ${{ github.ref_name }}
         draft: true

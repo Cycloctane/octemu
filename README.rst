@@ -35,6 +35,7 @@ WebAssembly Build
 
 Additional requirement: Emscripten::
 
+    git submodule update --init chip8Archive
     emcmake cmake -B build-web -DOCTEMU_SDL_PATH=vendor/SDL/
     cmake --build build-web
     emrun build-web/index.html

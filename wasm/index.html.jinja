@@ -16,34 +16,23 @@
       background: aliceblue;
     }
 
-    .section {
-      padding: 12px;
-    }
+    .section { padding: 12px; }
 
     .row {
       display: grid;
-      grid-template-columns: 60px 250px auto;
+      grid-template-columns: 60px 240px auto;
       align-items: center;
       column-gap: 10px;
       margin-bottom: 6px;
     }
 
-    select, input, button {
-      height: 24px;
-    }
+    select, input { height: 24px; }
 
     select, input {
       accent-color: steelblue;
       background: white;
       border: 1px solid steelblue;
       border-radius: 0;
-    }
-
-    button {
-      background: steelblue;
-      border: 0;
-      cursor: pointer;
-      color: white;
     }
 
     #canvas {
@@ -57,17 +46,11 @@
       margin-top: 10px;
     }
 
-    small {
-      color: gray;
-    }
+    small { color: gray; }
 
-    pre {
-      font-family: Consolas, 'Courier New', Courier, monospace;
-    }
+    pre { font-family: Consolas, 'Courier New', Courier, monospace; }
 
-    summary {
-      cursor: pointer;
-    }
+    summary { cursor: pointer; }
   </style>
 </head>
 <body>
@@ -79,9 +62,9 @@
         <div class="row">
           <label for="mode">Mode:</label>
           <select id="mode" style="width: 90px;" disabled>
-            <option value="0">CHIP-8</option>
-            <option value="1">SCHIP</option>
-            <option value="2" selected>OCTO</option>
+            <option value="chip8">CHIP-8</option>
+            <option value="schip">SCHIP</option>
+            <option value="octo" selected>OCTO</option>
           </select>
         </div>
         <div class="row">
@@ -90,11 +73,14 @@
           <span id="tickrate-value">200</span>
         </div>
         <div class="row">
-          <label for="upload">ROM:</label>
-          <input id="upload" type="file" accept=".ch8">
-          <button id="play" style="width: 60px;" type="button" disabled hidden>
-            Start
-          </button>
+          <label for="roms">ROM:</label>
+          <select id="roms" disabled>
+            <option value="" selected></option>
+            {%- for name in roms %}
+            <option value="{{ name }}">{{ roms[name]["title"] }}</option>
+            {%- endfor %}
+          </select>
+          <input id="upload" type="file" accept=".ch8" disabled>
         </div>
       </div>
     </div>
@@ -102,7 +88,6 @@
     <div class="section">
       <details id="help">
         <summary><u>help</u></summary><p></p>
-        <p>Hint: Download CHIP-8/SUPER-CHIP ROMs from <a href="https://github.com/JohnEarnest/chip8Archive">CHIP-8 Archive</a>.</p>
         <p>Key mapping:</p>
         <pre>
         +-------+-------+-------+-------+
@@ -126,7 +111,9 @@
 
   <script>
   (() => {
-    const play = document.getElementById("play");
+    const modes = {"chip8": 0, "schip": 1, "octo": 2};
+    const metadata = {{ roms | tojson }};
+    const roms = document.getElementById("roms");
     const upload = document.getElementById("upload");
     const mode = document.getElementById("mode");
     const tickrate = document.getElementById("tickrate");
@@ -135,36 +122,70 @@
     const runner = {
       setMode: null,
       setTickrate: null,
+      setColor: null,
       run: null
     };
 
     let rom = null;
+    let fillColor = "#2AA198", backgroundColor = "#002B36";
+
+    const color2int = color => {
+      let ctx = document.createElement("canvas").getContext("2d");
+      ctx.fillStyle = color;
+      return parseInt(ctx.fillStyle.slice(1), 16);
+    };
+
+    const start = () => {
+      if (!rom || rom.length === 0) {
+        alert("No ROM loaded");
+        return;
+      } else if (rom.length > 4096 - 0x200) {
+        alert("Invalid ROM size");
+        rom = null;
+        upload.value = "";
+        return;
+      }
+      runner.setColor(color2int(fillColor), color2int(backgroundColor));
+      if (runner.run(rom, rom.length) !== 0) {
+        alert("Failed to run emulator: unknown error");
+        rom = null;
+        upload.value = "";
+      }
+    }
+
+    roms.addEventListener("change", async () => {
+      if (roms.value === "") {
+        rom = null;
+        upload.hidden = false;
+        fillColor = "#2AA198";
+        backgroundColor = "#002B36";
+      } else {
+        upload.value = "";
+        upload.hidden = true;
+        rom = await fetch(`roms/${roms.value}.ch8`).then(res => res.arrayBuffer()).then(content => new Uint8Array(content));
+        tickrate.value = metadata[roms.value]["tickrate"];
+        tickrateValue.textContent = tickrate.value;
+        tickrate.dispatchEvent(new Event("change"));
+        mode.value = metadata[roms.value]["mode"];
+        mode.dispatchEvent(new Event("change"));
+        fillColor = metadata[roms.value]["fillColor"] || fillColor;
+        backgroundColor = metadata[roms.value]["backgroundColor"] || backgroundColor;
+        start();
+      }
+    });
 
     upload.addEventListener("change", async () => {
       const file = upload.files && upload.files[0];
       if (file) {
         rom = new Uint8Array(await file.arrayBuffer());
       }
-    });
-
-    play.addEventListener("click", () => {
-      if (!rom || rom.length === 0) {
-        alert("No ROM loaded");
-      } else if (rom.length > 4096 - 0x200) {
-        alert("Invalid ROM size");
-        rom = null;
-        upload.value = "";
-      } else if (runner.run(rom, rom.length) !== 0) {
-        alert("Failed to run emulator: unknown error");
-        rom = null;
-        upload.value = "";
-      }
+      start();
     });
 
     mode.addEventListener("change", () => {
-      if (runner.setMode(Number.parseInt(mode.value)) !== 0) {
+      if (runner.setMode(Number.parseInt(modes[mode.value])) !== 0) {
         alert("Failed to set mode");
-        mode.value = "2"; // OCTO mode
+        mode.value = "octo"; // OCTO mode
       }
     });
 
@@ -181,7 +202,7 @@
       tickrateValue.textContent = tickrate.value;
     });
 
-    tickrate.addEventListener("wheel", (event) => {
+    tickrate.addEventListener("wheel", event => {
       event.preventDefault();
       let newValue = Number.parseInt(tickrate.value) + Math.sign(-event.deltaY) * 2;
       newValue = Math.max(4, Math.min(1000, newValue));
@@ -196,9 +217,10 @@
         document.getElementById("version").textContent = Module.cwrap("get_version", "string", [])();
         runner.setMode = Module.cwrap("set_mode", "number", ["number"]);
         runner.setTickrate = Module.cwrap("set_tickrate", "number", ["number"]);
+        runner.setColor = Module.cwrap("set_color", null, ["number", "number"]);
         runner.run = Module.cwrap("run", "number", ["array", "number"]);
-        play.disabled = false;
-        play.hidden = false;
+        roms.disabled = false;
+        upload.disabled = false;
         mode.disabled = false;
         tickrate.disabled = false;
       }
