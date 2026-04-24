@@ -23,7 +23,7 @@ def load_yml(file: str) -> list:
             } for rom in yaml.safe_load(f).values()
         ]
 
-def load_chip8achive() -> list:
+def load_chip8archive() -> list:
     import json
     with open("../chip8Archive/programs.json", "r") as f:
         roms_json = json.load(f)
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     with open("rom.c.jinja", "r") as f:
         tmpl = jinja2.Environment(autoescape=False).from_string(f.read())
 
-    roms = load_yml(sys.argv[2]) if len(sys.argv) > 2 else load_chip8achive()
+    roms = load_yml(sys.argv[2]) if len(sys.argv) > 2 else load_chip8archive()
     assert len(roms) > 0, "No ROMs"
 
     with open(sys.argv[1].removesuffix(".c") + ".c", "w") as f:
