@@ -26,10 +26,9 @@
       margin-bottom: 6px;
     }
 
-    select, input { height: 24px; }
-
     select, input {
       accent-color: steelblue;
+      height: 24px;
       background: white;
       border: 1px solid steelblue;
       border-radius: 0;
@@ -178,8 +177,8 @@
       const file = upload.files && upload.files[0];
       if (file) {
         rom = new Uint8Array(await file.arrayBuffer());
+        start();
       }
-      start();
     });
 
     mode.addEventListener("change", () => {
