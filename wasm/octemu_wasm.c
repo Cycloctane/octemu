@@ -28,7 +28,8 @@ static SDL_AudioStream *audio_stream = NULL;
 static OctEmu *emu_core = NULL;
 
 static int tickrate = OCTEMU_TICKRATE_SCHIP;
-static uint32_t color_fg = OCTEMU_FOREGROUND_RGB, color_bg = OCTEMU_BACKGROUND_RGB;
+static uint32_t color_fg = (OCTEMU_FOREGROUND_RGB & 0xFFFFFF) | 0xFF000000;
+static uint32_t color_bg = (OCTEMU_BACKGROUND_RGB & 0xFFFFFF) | 0xFF000000;
 
 static uint8_t status = HALTED;
 static uint16_t keypad = 0; // 0: none, 0-15 bit: keypad[0-15]
@@ -55,8 +56,8 @@ int set_tickrate(const int t) {
 
 EMSCRIPTEN_KEEPALIVE
 void set_color(const uint32_t fg, const uint32_t bg) {
-    color_fg = fg & 0xFFFFFF;
-    color_bg = bg & 0xFFFFFF;
+    color_fg = (fg & 0xFFFFFF) | 0xFF000000;
+    color_bg = (bg & 0xFFFFFF) | 0xFF000000;
 }
 
 EMSCRIPTEN_KEEPALIVE
@@ -177,9 +178,9 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
                 for (int bit = 0; bit < 8; bit++) {
                     const uint16_t pos = y * OCTEMU_GFX_WIDTH + x * 8 + bit;
                     if (emu_core->gfx[y][x] & (1 << (7 - bit)))
-                        pixels[pos] = (color_fg & 0xFFFFFF) | 0xFF000000;
+                        pixels[pos] = color_fg;
                     else
-                        pixels[pos] = (color_bg & 0xFFFFFF) | 0xFF000000;
+                        pixels[pos] = color_bg;
                 }
             }
         }
@@ -207,13 +208,12 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
         }
     } else if (event->type == SDL_EVENT_KEY_UP) {
         switch (event->key.scancode) {
-        case SDL_SCANCODE_SPACE: { // pause/resume
+        case SDL_SCANCODE_SPACE: // pause/resume
             if (status == RUNNING)
                 status = PAUSED;
             else if (status == PAUSED)
                 status = RUNNING;
             break;
-        }
         case SDL_SCANCODE_F5: // reset
             octemu_reset(emu_core);
             status = RUNNING;
