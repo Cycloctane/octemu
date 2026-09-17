@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>octemu (loading...)</title>
+  <title>octemu: CHIP-8 Emulator</title>
   <style>
     body {
       padding: 18px;
@@ -152,15 +152,25 @@
       }
     }
 
+    const loadRomFromAnchor = () => {
+      const rom = decodeURIComponent(window.location.hash.slice(1) || "");
+      if (rom && metadata[rom] && roms.value !== rom) {
+        roms.value = rom;
+        roms.dispatchEvent(new Event("change"));
+      }
+    }
+
     roms.addEventListener("change", async () => {
       if (roms.value === "") {
         rom = null;
         upload.hidden = false;
         fillColor = "#2AA198";
         backgroundColor = "#002B36";
+        window.location.hash = "";
       } else {
         upload.value = "";
         upload.hidden = true;
+        window.location.hash = roms.value;
         rom = await fetch(`roms/${roms.value}.ch8`).then(res => res.arrayBuffer()).then(content => new Uint8Array(content));
         tickrate.value = metadata[roms.value]["tickrate"];
         tickrateValue.textContent = tickrate.value;
@@ -222,6 +232,9 @@
         upload.disabled = false;
         mode.disabled = false;
         tickrate.disabled = false;
+
+        loadRomFromAnchor();
+        window.addEventListener("hashchange", loadRomFromAnchor);
       }
     };
   })();
