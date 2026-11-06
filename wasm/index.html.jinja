@@ -18,7 +18,7 @@
 
     .section { padding: 12px; }
 
-    .row {
+    .config {
       display: grid;
       grid-template-columns: 60px 240px auto;
       align-items: center;
@@ -57,38 +57,36 @@
     <div class="section">
       <h1>octemu</h1>
       <p>Octane's CHIP-8/SUPER-CHIP emulator (WebAssembly)</p>
-      <div id="config">
-        <div class="row">
-          <label for="mode">Mode:</label>
-          <select id="mode" style="width: 90px;" disabled>
-            <option value="chip8">CHIP-8</option>
-            <option value="schip">SCHIP</option>
-            <option value="octo" selected>OCTO</option>
-          </select>
-        </div>
-        <div class="row">
-          <label for="tickrate">Tickrate:</label>
-          <input id="tickrate" type="range" min="4" max="1000" step="2" value="200" disabled>
-          <span id="tickrate-value">200</span>
-        </div>
-        <div class="row">
-          <label for="roms">ROM:</label>
-          <select id="roms" disabled>
-            <option value="" selected></option>
-            {%- for name in roms %}
-            <option value="{{ name }}">{{ roms[name]["title"] }}</option>
-            {%- endfor %}
-          </select>
-          <input id="upload" type="file" accept=".ch8" disabled>
-        </div>
+      <div class="config">
+        <label for="mode">Mode:</label>
+        <select id="mode" style="width: 90px;" disabled>
+          <option value="chip8">CHIP-8</option>
+          <option value="schip">SCHIP</option>
+          <option value="octo" selected>OCTO</option>
+        </select>
+      </div>
+      <div class="config">
+        <label for="tickrate">Tickrate:</label>
+        <input id="tickrate" type="range" min="4" max="1000" step="2" value="200" disabled>
+        <span id="tickrate-value">200</span>
+      </div>
+      <div class="config">
+        <label for="roms">ROM:</label>
+        <select id="roms" disabled>
+          <option value="" selected></option>
+          {%- for name in roms %}
+          <option value="{{ name }}">{{ roms[name]["title"] }}</option>
+          {%- endfor %}
+        </select>
+        <input id="upload" type="file" accept=".ch8" disabled>
       </div>
     </div>
     <canvas id="canvas" width="640" height="320"></canvas>
     <div class="section">
       <p id="desc" hidden></p>
       <p id="howto" hidden></p>
-      <details id="help">
-        <summary><u>help</u></summary><p></p>
+      <details>
+        <summary><u>help</u></summary>
         <p>Key mapping:</p>
         <pre>
         +-------+-------+-------+-------+
@@ -100,7 +98,8 @@
         +-------+-------+-------+-------+
         | A (Z) | 0 (X) | B (C) | F (V) |
         +-------+-------+-------+-------+
-        Space: Pause/Resume; F5: Reload Current ROM; F12: Save Screenshot.</pre>
+        </pre>
+        <p>Space: Pause/Resume; F5: Reload Current ROM; F11: Fullscreen; F12: Screenshot.</p>
         <p>Have fun!</p>
       </details>
       <footer>
@@ -207,7 +206,7 @@
     mode.addEventListener("change", () => {
       if (runner.setMode(Number.parseInt(modes[mode.value])) !== 0) {
         alert("Failed to set mode");
-        mode.value = "octo"; // OCTO mode
+        mode.value = "octo";
       }
     });
 
