@@ -17,7 +17,7 @@ def load_chip8archive() -> dict[str, dict[str, str | int]]:
         roms_json = json.load(f)
     roms = {}
     for name, info in roms_json.items():
-        if info.get("platform") not in {"chip8", "schip"}:
+        if info.get("platform") not in {"chip8", "schip"} or "options" not in info:
             continue
         if info["options"].get("logicQuirks"):
             mode = "chip8"
@@ -27,8 +27,9 @@ def load_chip8archive() -> dict[str, dict[str, str | int]]:
             mode = "octo"
         roms[name] = {
             "title": info["title"], "mode": mode, "tickrate": int(info["options"]["tickrate"]),
-            "fillColor": info.get("options", {}).get("fillColor"),
-            "backgroundColor": info.get("options", {}).get("backgroundColor"),
+            "fillColor": info["options"].get("fillColor"),
+            "backgroundColor": info["options"].get("backgroundColor"),
+            "desc": info.get("desc"), "howto": info.get("howto"),
         }
     return roms
 

@@ -85,6 +85,8 @@
     </div>
     <canvas id="canvas" width="640" height="320"></canvas>
     <div class="section">
+      <p id="desc" hidden></p>
+      <p id="howto" hidden></p>
       <details id="help">
         <summary><u>help</u></summary><p></p>
         <p>Key mapping:</p>
@@ -117,6 +119,8 @@
     const mode = document.getElementById("mode");
     const tickrate = document.getElementById("tickrate");
     const tickrateValue = document.getElementById("tickrate-value");
+    const desc = document.getElementById("desc");
+    const howto = document.getElementById("howto");
 
     const runner = {
       setMode: null,
@@ -133,6 +137,11 @@
       ctx.fillStyle = color;
       return parseInt(ctx.fillStyle.slice(1), 16);
     };
+
+    const setText = (element, text) => {
+      element.hidden = !text;
+      element.textContent = text || "";
+    }
 
     const start = () => {
       if (!rom || rom.length === 0) {
@@ -167,6 +176,8 @@
         fillColor = "#2AA198";
         backgroundColor = "#002B36";
         window.location.hash = "";
+        setText(desc, null);
+        setText(howto, null);
       } else {
         upload.value = "";
         upload.hidden = true;
@@ -179,6 +190,8 @@
         mode.dispatchEvent(new Event("change"));
         fillColor = metadata[roms.value]["fillColor"] || fillColor;
         backgroundColor = metadata[roms.value]["backgroundColor"] || backgroundColor;
+        setText(desc, metadata[roms.value]["desc"]);
+        setText(howto, metadata[roms.value]["howto"]);
         start();
       }
     });
