@@ -16,17 +16,17 @@ pico_set_program_url(octemu-pico "https://github.com/Cycloctane/octemu/tree/main
 
 execute_process(
     COMMAND git describe --always --tags
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     OUTPUT_VARIABLE OCTEMU_VERSION
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 pico_set_program_version(octemu-pico ${OCTEMU_VERSION})
 
-set(OCTEMU_PICO_ROM "" CACHE PATH "Path to CHIP-8 ROM configure json file")
+set(OCTEMU_PICO_ROM "" CACHE PATH "Path to CHIP-8 ROM configure yaml file")
 add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/_rom.c
-    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/render_romc.py ${CMAKE_CURRENT_SOURCE_DIR}/_rom.c ${OCTEMU_PICO_ROM}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/_rom.c"
+    COMMAND ./render_romc.py rom.c.jinja _rom.c "${OCTEMU_PICO_ROM}"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     COMMENT "Generating _rom.c..."
     VERBATIM)
 

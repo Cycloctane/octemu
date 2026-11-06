@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 
 import json
-from os import makedirs, path
+from os import environ, makedirs, path
 import shutil
 import sys
+
 import jinja2
 
-CURRENT_DIR = path.dirname(__file__)
-DEST_DIR = sys.argv[1]
+TEMPL = sys.argv[1]
+OUTPUT_DIR = sys.argv[2]
+CHIP8_ARCHIVE = environ.get("CHIP8_ARCHIVE_PATH", "../chip8Archive/")
 
 def load_chip8archive() -> dict[str, dict[str, str | int]]:
-    programs_json = path.join(CURRENT_DIR, "../chip8Archive/programs.json")
+    programs_json = path.join(CHIP8_ARCHIVE, "programs.json")
     if not path.exists(programs_json):
         return {}
     with open(programs_json, "r") as f:
@@ -33,20 +35,20 @@ def load_chip8archive() -> dict[str, dict[str, str | int]]:
         }
     return roms
 
-def copy_roms(roms: dict[str, dict], dest_dir: str) -> None:
-    makedirs(path.join(dest_dir, "roms"), exist_ok=True)
+def copy_roms(roms: dict[str, dict]) -> None:
+    makedirs(path.join(OUTPUT_DIR, "roms/"), exist_ok=True)
     for name in roms.keys():
         shutil.copy(
-            path.join(CURRENT_DIR, f"../chip8Archive/roms/{name}.ch8"),
-            path.join(dest_dir, "roms"),
+            path.join(CHIP8_ARCHIVE, "roms/", f"{name}.ch8"),
+            path.join(OUTPUT_DIR, "roms/"),
         )
 
 if __name__ == "__main__":
     roms = load_chip8archive()
-    copy_roms(roms, DEST_DIR)
+    copy_roms(roms)
 
-    with open(path.join(CURRENT_DIR, "index.html.jinja"), "r") as f:
+    with open(TEMPL, "r") as f:
         tmpl = jinja2.Environment().from_string(f.read())
 
-    with open(path.join(DEST_DIR, "index.html"), "w") as f:
+    with open(path.join(OUTPUT_DIR, "index.html"), "w") as f:
         f.write(tmpl.render(roms=roms))
