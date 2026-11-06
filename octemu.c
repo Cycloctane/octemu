@@ -244,16 +244,20 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 }
 
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
-    if (event->type == SDL_EVENT_QUIT)
+    static bool fullscreen = false;
+
+    switch (event->type) {
+    case SDL_EVENT_QUIT:
         return SDL_APP_SUCCESS;
-    else if (event->type == SDL_EVENT_KEY_DOWN) {
+    case SDL_EVENT_KEY_DOWN:
         for (int i = 0; i < 16; i++) {
             if (event->key.scancode == keymapping[i]) {
                 atomic_fetch_or_explicit(&keypad, 1 << OctEmu_Keypad[i], memory_order_acq_rel);
                 break;
             }
         }
-    } else if (event->type == SDL_EVENT_KEY_UP) {
+        break;
+    case SDL_EVENT_KEY_UP:
         switch (event->key.scancode) {
         case SDL_SCANCODE_ESCAPE:
             return SDL_APP_SUCCESS;
@@ -273,6 +277,10 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
                 SDL_SetWindowTitle(window, "octemu " OCTEMU_VERSION);
             store(status, RESET);
             break;
+        case SDL_SCANCODE_F11: // toggle fullscreen
+            fullscreen = !fullscreen;
+            SDL_SetWindowFullscreen(window, fullscreen);
+            break;
         case SDL_SCANCODE_F12: // screenshot
             screenshot = true;
             break;
@@ -284,6 +292,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
                 }
             }
         }
+        break;
     }
     return SDL_APP_CONTINUE;
 }

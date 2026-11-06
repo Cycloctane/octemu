@@ -197,16 +197,18 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 }
 
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
-    if (event->type == SDL_EVENT_QUIT)
+    switch (event->type) {
+    case SDL_EVENT_QUIT:
         return SDL_APP_SUCCESS;
-    else if (event->type == SDL_EVENT_KEY_DOWN) {
+    case SDL_EVENT_KEY_DOWN:
         for (int i = 0; i < 16; i++) {
             if (event->key.scancode == keymapping[i]) {
                 keypad |= (1 << OctEmu_Keypad[i]);
                 break;
             }
         }
-    } else if (event->type == SDL_EVENT_KEY_UP) {
+        break;
+    case SDL_EVENT_KEY_UP:
         switch (event->key.scancode) {
         case SDL_SCANCODE_SPACE: // pause/resume
             if (status == RUNNING)
@@ -217,6 +219,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
         case SDL_SCANCODE_F5: // reset
             octemu_reset(emu_core);
             status = RUNNING;
+            break;
+        case SDL_SCANCODE_F11: // toggle fullscreen
+            SDL_SetWindowFullscreen(window, true);
             break;
         case SDL_SCANCODE_F12:
             screenshot = true;
@@ -229,6 +234,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
                 }
             }
         }
+        break;
     }
     return SDL_APP_CONTINUE;
 }
